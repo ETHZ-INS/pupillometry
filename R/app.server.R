@@ -178,7 +178,7 @@ app.server <- function(){
 
       gb <- input$plot_groupBy
       if(!is.null(gb)){
-        groups <- apply(meta[,gb,drop=F],1,collapse=" ",paste)
+        groups <- apply(dat$meta[,gb,drop=F],1,collapse=" ",paste)
         colors <- colors[!duplicated(groups)]
         ll <- lapply(split(ll,groups), FUN=function(x){
           if(length(x)==1) x[[1]]
