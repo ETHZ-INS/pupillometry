@@ -1,0 +1,14 @@
+Package: pupillometry
+Type: Package
+Title: Shiny interface for analyzing pupillometry data
+Version: 0.1
+Authors@R: as.person(c(
+    "Pierre-Luc Germain <pierre-luc.germain@hest.ethz.ch> [aut, cre]", 
+    "Lukas von Ziegler <lukas.ziegler@hest.ethz.ch> [aut]"
+  ))
+Description: More about what it does (maybe more than one line)
+License: GPL
+Imports: data.table, R.matlab, shiny, plotly, shinydashboard, shinycssloaders, colourpicker, MASS, lme4, lmerTest, lsmeans
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.0
