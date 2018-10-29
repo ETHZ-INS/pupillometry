@@ -126,7 +126,7 @@ app.server <- function(){
       shapes <- c( .getBinAreas(bb$baseline, yrange, color=input$color_baselineBins, opacity=input$opacity_baselineBins ),
                    .getBinAreas(bb$response, yrange, color=input$color_responseBins, opacity=input$opacity_responseBins )
                    )
-      d$Time <- d$Time*input$timeFactor
+      d$Time <- d$Time/(input$timeFactor*(1+59*input$TimeinMinutes))
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
       layout(p, shapes=shapes)
     })
@@ -142,11 +142,19 @@ app.server <- function(){
     #################
     # BEGIN Stats
 
+    normfactor <-reactive({
+      1 / (input$timeFactor*(1+59*input$TimeinMinutes))
+    })
+    
     # normalized data
     normDat <- reactive({
-      if(!datOk() | !binsOk()) return(NULL)
+      if(!datOk()) return(NULL)
+      if( !input$cb_normalize & input$normDrift=="no" ) return({
+        lapply(dat$diameters, FUN=function(x){ x$Time <- x$Time*normfactor();x })
+        })
+      if(!datOk() | (!binsOk())) return(NULL)
       if(is.null(bins()$baseline) || is.null(bins()$response)) return(NULL)
-      normDiameters(dat, bins(), tf=input$timeFactor, normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift)
+      normDiameters(dat, bins(), tf=normfactor(), normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift)
     })
 
 
@@ -172,7 +180,7 @@ app.server <- function(){
       ll <- normDat()
       if(is.null(ll)) return(NULL)
 
-      ll <- .avgIntervals(ll, input$interval)
+      ll <- .avgIntervals(ll, input$interval * normfactor())
 
       colors <- sColors()
 
@@ -207,7 +215,46 @@ app.server <- function(){
         }
         p <- add_trace(p, data=a, mode=ifelse(input$showPoints,"markers+lines","lines"), x=~Time, y=~Diameter, color=colors[i], name=names(ll)[i])
       }
+      if(input$TimeinMinutes & input$cb_normalize){
+      layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (% of baseline)"))
+      }else if(input$TimeinMinutes & !input$cb_normalize){
+      layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+      }
+      else if(!input$TimeinMinutes & input$cb_normalize){
       layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (% of baseline)"))
+      }else{
+      layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
+      }
     })
+    
+    # END plot tab
+    #################
+    # BEGIN export
+    
+    datasetExport <- reactive({
+              meta <- dat$meta
+      switch(input$dataset, 
+             "Raw Data" = lapply(dat$diameters, FUN=function(x){ x$Time <- x$Time*normfactor();x }),
+             "Normalized Data" = normDat(),
+             "Bin Results" = {
+               allbins <- rbind( cbind(bins()$baseline, Time=1:nrow(bins()$baseline), Response=rep(0,nrow(bins()$baseline))),
+                                 cbind(bins()$response, Time=1:nrow(bins()$response), Response=rep(1,nrow(bins()$response))) )
+               cbind(do.call(rbind, .getBinData(normDat(), allbins)), meta[rep(names(normDat()),nrow(allbins)),])
+             })
+    })
+    
+    output$exporttable <- renderTable({
+      head(datasetExport())
+    })
+    
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        paste(input$dataset,".csv", sep = "")
+      },
+      content = function(file){
+        write.csv(datasetExport(), file, row.names = FALSE)
+      }
+    )
+    
   }
 }

@@ -7,9 +7,12 @@
 #' @export
 testResponse <- function(response_data, testVar="Response", forms=list()){
   library(lme4)
-  library(lmerTest)
   library(lsmeans)
-
+  
+  if(is.null(response_data$Time)){
+    response_data$Time <- as.factor(response_data$Time)
+  }
+  
   nbl <- length(unique(response_data[which(response_data$Response==0),"Time"]))
   nrb <- length(unique(response_data[which(response_data$Response==1),"Time"]))
   if(nbl>1 & nbl!=nrb) stop("There must either be a single baseline bin or the same number as the number of response bins.")

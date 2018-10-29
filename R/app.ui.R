@@ -21,7 +21,8 @@ app.ui <- function(){
         menuItem("Settings", tabName="settings"),
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
-        menuItem("About", tabName="about")
+        menuItem("About", tabName="about"),
+        menuItem("Export", tabName="export")
       )
     ),
     dashboardBody(
@@ -60,8 +61,9 @@ app.ui <- function(){
                sliderInput("opacity_SD", "Opacity of standard deviation/error", min=0, max=1, step=0.1, value=0.3)
           ),
           box(
-            numericInput("timeFactor", "Time factor", min=0.01, max=1, value=0.2),
-            tags$p("Factor by which to multiply the input time in order to obtain seconds. If the input time is expressed as frame number, this should be 1/(frames per second)")
+            numericInput("timeFactor", "frames per second", min=0.01, max=100, value=5),
+            tags$p("Insert the frames per second used for pupillometry"),
+            checkboxInput("TimeinMinutes", "Define if data should be plotted in minutes", value = F)
           ),
           box( title="Normalization",
             checkboxInput("cb_normalize","Normalize to (first) baseline bin", value=T),
@@ -91,6 +93,11 @@ app.ui <- function(){
         ),
         tabItem("about",
           box(width=12, "some text saying that Lukas and ETH are awesome...")
+        ),
+        tabItem("export",
+                selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results")),
+                downloadButton("downloadData", "Download"),
+                tableOutput("exporttable")
         )
       )
     )
