@@ -83,11 +83,11 @@ app.ui <- function(){
         ),
         tabItem("tests",
           box(width=12,
-            column(4, selectInput("test_var","Test for differences across", choices=c(), selectize=F)),
-            column(2, tags$div(style="padding-top: 20px; text-align:center;", tags$h4("OR"))),
-            column(6,
-              textInput("test_formula", "Enter full formula"),
-              textInput("test_formula0", "Enter reduced formula")
+            column(6, selectInput("test_var","Test for differences across", choices=c(), selectize=F)),
+            column(6, selectInput("animal_var","Animal variable", choices=c(), selectize=F)),
+            column(12, tags$div(style="padding-top: 20px; text-align:center;", tags$h4("OR"))),
+            column(6, textInput("test_formula", "Enter full formula")),
+            column(6, textInput("test_formula0", "Enter reduced formula")
             )
           ),
           tags$div(style="margin: 10px;", fluidRow( verbatimTextOutput("test_results") ))

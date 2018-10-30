@@ -5,10 +5,17 @@
 #' @param forms An optional list with slots `full` and `reduced` containing the respective formulas.
 #'
 #' @export
-testResponse <- function(response_data, testVar="Response", forms=list()){
+testResponse <- function(response_data, testVar="Response", forms=list(), drift = "no", blnorm = F, animal = "None"){
   library(lme4)
   library(lmerTest)
   library(lsmeans)
+  
+  if(drift != "no"){
+    cat("WARNING!!!: data is normalized with a linear diameter drift model. This can introduce artefacts and reduce statistical power. Use of non-normalized data for statistics is recommended \n\n")
+  }
+  if(blnorm){
+    cat("WARNING!!!: Data is normalized to first baseline. Use of non-normalized data for statistics is recommended \n\n")
+  }
   
   if(!is.null(response_data$Time)){
     response_data$Time <- as.factor(response_data$Time)
@@ -20,7 +27,8 @@ testResponse <- function(response_data, testVar="Response", forms=list()){
 
   if(is.character(response_data[[testVar]])) response_data[[testVar]] <- as.factor(response_data[[testVar]])
   if(length(levels(response_data[[testVar]]))==1) testVar <- "Response"
-
+  response_data$Response<- as.factor(response_data$Response)
+  
   if( !is.null(forms$full) && forms$full!="" && !is.null(forms$reduced) && forms$reduced!=""){
     tryCatch({
       form <- as.character(forms$full)
@@ -37,9 +45,9 @@ testResponse <- function(response_data, testVar="Response", forms=list()){
     useLmer <- grepl("\\(",form)
   }else{
     # building the models
-    useLmer <- "Animal" %in% colnames(response_data)
+    useLmer <- animal != "None"
     terms0 <- vector(mode="character",length=0)
-    if(useLmer) terms0 <- "(1|Animal)"
+    if(useLmer) terms0 <- paste("(1|",animal,")",sep="")
     tTerms <- unique(c(testVar,"Response"))
     if(nbl>1 & nrb>1){
       # multiple response bins
@@ -48,8 +56,6 @@ testResponse <- function(response_data, testVar="Response", forms=list()){
     form <- gsub("\\+$","",paste0("Diameter~",paste(paste(tTerms,collapse="*"),paste(terms0,collapse="+"),sep="+")))
     form0 <- paste0("Diameter~",ifelse(length(terms0),paste(terms0,collapse="+"),1))
   }
-
-  cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
 
   if(useLmer){
     model <- lmer(as.formula(form), data=response_data)
@@ -60,6 +66,7 @@ testResponse <- function(response_data, testVar="Response", forms=list()){
   }
 
   cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
+  cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
   print(anova(model.null,model))
   cat("\n =============== STATISTICAL RESULTS: =============== \n\n")
   print(summary(model))

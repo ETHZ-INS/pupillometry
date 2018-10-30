@@ -30,8 +30,10 @@ app.server <- function(){
               dat$meta=metadat
               updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
               selTestVar <- input$test_var
+              selAnimVar <- input$animal_var
               if(is.null(selTestVar) && "Group" %in% colnames(dat$meta)) selTestVar <- "Group"
               updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
+              updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
             }
           }
         }
@@ -171,7 +173,7 @@ app.server <- function(){
       allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
                         cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
       d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
-      testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0))
+      testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var)
     })
 
     # END Stats
