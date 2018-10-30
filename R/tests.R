@@ -7,9 +7,10 @@
 #' @export
 testResponse <- function(response_data, testVar="Response", forms=list()){
   library(lme4)
+  library(lmerTest)
   library(lsmeans)
   
-  if(is.null(response_data$Time)){
+  if(!is.null(response_data$Time)){
     response_data$Time <- as.factor(response_data$Time)
   }
   

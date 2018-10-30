@@ -41,6 +41,11 @@ app.ui <- function(){
             selectInput("preview_sample", "Sample for preview", choices=c(), selectize=F),
             plotlyOutput("preview_bins")
           ),
+          box(
+            numericInput("timeFactor", "frames per second", min=0, max=100, value=5),
+            tags$p("define the frames per second of pupillometry recordings to ensure that the recording time corresponds to the plotted time"),
+            checkboxInput("TimeinMinutes", "Data plotted in minutes", value = F)
+          ),
           box(width=12,
             column(6,
               textAreaInput( "baseline_bins", label="Enter the start and end time of the baseline bin(s)", placeholder="e.g. 0-10" )
@@ -54,16 +59,12 @@ app.ui <- function(){
         ),
         tabItem("settings",
           box( title="Plot",
-               numericInput("interval", label="Interval size (in seconds)", min=0, max=2, step=0.05, value=1),
+               numericInput("interval", label="Interval size (in seconds)", min=0, max=10, step=0.2, value=0.2),
+               tags$p("customize the interval at which data-points should be plotted"),
                checkboxInput("showPoints", label="Plot points", value=T),
                selectInput("plot_groupBy","Group by",choices=c(),selectize=T,multiple=T),
                selectInput("plot_errType","Error type",choices=c("Standard error"="SE", "Standard deviation"="SD"),selectize=F),
                sliderInput("opacity_SD", "Opacity of standard deviation/error", min=0, max=1, step=0.1, value=0.3)
-          ),
-          box(
-            numericInput("timeFactor", "frames per second", min=0.01, max=100, value=5),
-            tags$p("Insert the frames per second used for pupillometry"),
-            checkboxInput("TimeinMinutes", "Define if data should be plotted in minutes", value = F)
           ),
           box( title="Normalization",
             checkboxInput("cb_normalize","Normalize to (first) baseline bin", value=T),

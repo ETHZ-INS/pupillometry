@@ -126,9 +126,12 @@ app.server <- function(){
       shapes <- c( .getBinAreas(bb$baseline, yrange, color=input$color_baselineBins, opacity=input$opacity_baselineBins ),
                    .getBinAreas(bb$response, yrange, color=input$color_responseBins, opacity=input$opacity_responseBins )
                    )
-      d$Time <- d$Time/(input$timeFactor*(1+59*input$TimeinMinutes))
+      d$Time <- d$Time * normfactor()
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
-      layout(p, shapes=shapes)
+      if(input$TimeinMinutes){
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+        }else
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
     })
 
     # prints the menu badge for bins
@@ -167,7 +170,7 @@ app.server <- function(){
       nrb <- nrow(bins()$response)
       allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
                         cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
-      d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),nrow(allbins)),])
+      d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
       testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0))
     })
 
@@ -237,9 +240,15 @@ app.server <- function(){
              "Raw Data" = lapply(dat$diameters, FUN=function(x){ x$Time <- x$Time*normfactor();x }),
              "Normalized Data" = normDat(),
              "Bin Results" = {
-               allbins <- rbind( cbind(bins()$baseline, Time=1:nrow(bins()$baseline), Response=rep(0,nrow(bins()$baseline))),
-                                 cbind(bins()$response, Time=1:nrow(bins()$response), Response=rep(1,nrow(bins()$response))) )
-               cbind(do.call(rbind, .getBinData(normDat(), allbins)), meta[rep(names(normDat()),nrow(allbins)),])
+               d <- normDat()
+               if(is.null(d)) return(NULL)
+               if(is.null(dat$meta)) stop("No metadata given.")
+               meta <- dat$meta[names(d),]
+               nbl <- nrow(bins()$baseline)
+               nrb <- nrow(bins()$response)
+               allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
+                                 cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
+               cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
              })
     })
     
