@@ -90,7 +90,18 @@ app.ui <- function(){
               column(4, textInput("plotXax", label="x-axis label", value = "")),
               column(4, textInput("plotYax", label="y-axis label", value = "")),
               downloadButton("downloadPlot", "Download"),
-              plotOutput(height = "700px","ExportablePlot"))
+              plotOutput(height = "650px","ExportablePlot"),
+              box(title = "customize axes and export dimensions",width=12,collapsible=T, collapsed=T,
+                column(4, numericInput("xax_low", label="lower boundary of x-axis", value=NA)),
+                column(4, numericInput("xax_high", label="upper boundary of x-axis", value=NA)),
+                column(4, numericInput("xax_step", label="Intervalsize of x-axis", value=NA)),
+                column(4, numericInput("yax_low", label="lower boundary of y-axis", value=NA)),
+                column(4, numericInput("yax_high", label="upper boundary of y-axis", value=NA)),
+                column(4, numericInput("yax_step", label="intervalsize of y-axis", value=NA)),
+                column(4, numericInput("plotwidth", label="export width (inch)", value=12)),
+                column(4, numericInput("plotheigth", label="export heigth (inch)", value=8))
+              )
+          )
         ),
         tabItem("tests",
           box(width=12,

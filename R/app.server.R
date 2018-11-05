@@ -318,6 +318,8 @@ app.server <- function(){
         cols <- cols[,1]
         p <- ggplot(PlotData,aes(Time,Diameter, group = FileName, color = PlotBy)) +
           geom_line(aes(color = PlotBy),size = input$PlotLineSize)
+        ymax <- max(PlotData$Diameter)
+        ymin <- min(PlotData$Diameter)
       }
       
       if(selplotType == "RP"){
@@ -346,6 +348,9 @@ app.server <- function(){
           geom_line(aes(group = PlotBy, color = PlotBy), size = input$PlotLineSize) + 
           geom_ribbon(aes(ymin = Diameter_low,ymax = Diameter_high,color = PlotBy, fill = PlotBy)) +
           scale_fill_manual(values = alpha(cols, input$opacity_SD),name = legTit)
+        
+        ymax <- max(PlotData$Diameter_high)
+        ymin <- min(PlotData$Diameter_low)
       }
 
       if(input$plotXax != ""){
@@ -362,15 +367,27 @@ app.server <- function(){
       if(input$showPoints){
         p <- p + geom_point(aes(color = PlotBy))
       }
+
+      if(input$cb_plot_bins & binsOk()){
+        p <- p + geom_rect(data = as.data.frame(bb$baseline),inherit.aes = FALSE, mapping =aes(xmin=V1,xmax=V2,ymin=ymin,ymax=ymax), fill=input$color_baselineBins, alpha = input$opacity_baselineBins)+
+          geom_rect(data = as.data.frame(bb$response),inherit.aes = FALSE, mapping =aes(xmin=V1,xmax=V2,ymin=ymin,ymax=ymax), fill=input$color_responseBins, alpha = input$opacity_responseBins)
+      }
+
+      if(!is.na(input$xax_low * input$xax_high * input$xax_step)){
+        p <- p + scale_x_continuous(limits = c(input$xax_low, input$xax_high), breaks = seq(from = input$xax_low, to = input$xax_high, by = input$xax_step))
+      }
+      if(!is.na(input$yax_low * input$yax_high * input$yax_step)){
+        p <- p + scale_y_continuous(limits = c(input$yax_low, input$yax_high), breaks = seq(from = input$yax_low, to = input$yax_high, by = input$yax_step))
+      }
       
       p <- p + 
         theme_bw() + 
         scale_color_manual(values = alpha(cols,1), name = legTit) +
         ggtitle(input$plotTilte) +
         theme(plot.title = element_text(hjust = 0.5))
-
+      
       PlotExport$p <- p
-      plot(p)
+      plot(PlotExport$p)
       
     },height = 600, width = 800)
     
@@ -417,7 +434,7 @@ app.server <- function(){
         "ExportedPlot.pdf"
       },
       content = function(file){
-        pdf(file,width=12, height=8)
+        pdf(file,width=input$plotwidth, height=input$plotheight)
         print(PlotExport$p)
         dev.off()
       }
