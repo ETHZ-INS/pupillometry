@@ -40,6 +40,7 @@ app.server <- function(){
       }, error=function(e){ stop(safeError(e)) })
     )
 
+    #remove all loaded samples
     observeEvent(input$removesamples, {
       dat$meta=NULL
       dat$diameters=list()
@@ -48,6 +49,8 @@ app.server <- function(){
       updateSelectInput(session, "plot_groupBy", choices = character(0) , selected='')
       updateSelectInput(session, "preview_sample", choices = character(0) , selected='')
     })
+    
+    #load examplary samples
     observeEvent(input$testsamples, {
       example <- readRDS("P:/Lukas/Pupillometry/ExampleData.R")  #HAS TO BE UPDATED SO IT READS THE EXAMPLEDATA.R FROM A LIBRARY DATASET
       dat$meta <- example$meta
@@ -73,10 +76,21 @@ app.server <- function(){
     })
 
     # prints some info about the uploaded files
+    
+    Filesanity <- reactive({
+      length(unique(sapply(dat$diameters,FUN=function(x){ paste(range(x$Time),collapse="-") }))) <= 1
+    })
+    
     output$samples_info <- renderTable({
       cbind(file=names(dat$diameters), range=sapply(dat$diameters,FUN=function(x){ paste(range(x$Time),collapse="-") }))
     })
-
+    
+    output$sampleWarning <- renderText({
+      if(!Filesanity())
+        return("Warning: Samples are not in the same time range! This might interfere with plotting/analysis")
+    })
+    
+    
     # prints the metadata
     output$samples_metadata <- renderTable({
       if(is.null(dat$meta)) return(NULL)
@@ -93,6 +107,7 @@ app.server <- function(){
       }
     })
     
+    # definition of default legend, x-axis and y-axis descriptions
     defaultleg <- reactive({
       if(!is.null(input$plot_groupBy)){
         input$plot_groupBy
@@ -100,6 +115,7 @@ app.server <- function(){
         "Sample"
       }
     })
+
     defaultXax <- reactive({
       if(input$TimeinMinutes){
         "Time (min)"
@@ -107,6 +123,7 @@ app.server <- function(){
         "Time (s)"
       }
     })
+
     defaultYax <- reactive({
       if(input$cb_normalize){
         "Diameter (% of baseline)"
@@ -204,6 +221,7 @@ app.server <- function(){
     #################
     # BEGIN Stats
 
+    #normalization factor for time
     normfactor <-reactive({
       1 / (input$timeFactor*(1+59*input$TimeinMinutes))
     })
@@ -245,22 +263,14 @@ app.server <- function(){
       }
       if(is.null(ll)) return(NULL)
 
-
-      ll <- .avgIntervals(ll, input$interval * normfactor())
-
+      ll <- .avgIntervals(ll, input$interval * normfactor() * input$timeFactor)
       colors <- sColors()
 
       gb <- input$plot_groupBy
       if(!is.null(gb)){
         groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
         colors <- gColors()
-        ll <- lapply(split(ll,groups), FUN=function(x){
-          if(length(x)==1) x[[1]]
-          m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
-          SD <- apply(sapply(x,FUN=function(x) x[,2]),1,FUN=sd)
-          if(input$plot_errType=="SE") SD <- SD/sqrt(length(x))
-          data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
-        })
+        ll <- .getRibbonData(ll,input$plot_errType,groups)
       }
 
       if(input$cb_plot_bins){
@@ -286,63 +296,54 @@ app.server <- function(){
     })
     
     output$ExportablePlot <- renderPlot({
+      
+      #load bins and data
       bb <- bins()
       if(is.null(bb$baseline) & input$cb_normalize){
-        stop("Warning, no baseline bin defined. Can not print normalized plot")
+        stop("No baseline bin defined. Can not print normalized plot")
       }
+      ll <- normDat()
+      ll <- .avgIntervals(ll, input$interval * normfactor() * input$timeFactor)
+      gb <- input$plot_groupBy
+      if(!is.null(gb)) groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
       
       selplotType <- input$plotType
       updateSelectInput(session, "plotType", choices=c("Line plot" = "LP","Ribbon plot"="RP"), selected=selplotType)
+      
+      #legend title
       if(input$legendTitle != ""){
         legTit <- input$legendTitle
       }else{
         legTit <- defaultleg()
       }
       
+      #line plot
       PlotData <- NULL
       if(selplotType == "LP"){
-        ll <- normDat()
         for(i in names(ll)){
           PlotData <- rbind(PlotData,cbind(FileName = i, PlotBy = i, ll[[i]]))
         }
         cols <- sColors()
         
         if(!is.null(input$plot_groupBy)){
-        gb <- input$plot_groupBy
-        groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
         PlotData$PlotBy <- groups[PlotData$FileName]
         cols <- gColors()
         }
-        cols <- as.data.frame(cols)
-        levels(PlotData$PlotBy) <- substring(rownames(cols),8)
-        cols <- cols[,1]
+
         p <- ggplot(PlotData,aes(Time,Diameter, group = FileName, color = PlotBy)) +
           geom_line(aes(color = PlotBy),size = input$PlotLineSize)
         ymax <- max(PlotData$Diameter)
         ymin <- min(PlotData$Diameter)
       }
       
+      #ribbon plot
       if(selplotType == "RP"){
-        gb <- input$plot_groupBy
-        if(is.null(gb))return(NULL)
-        ll <- normDat()
-        groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
-        ll <- .avgIntervals(ll, input$interval * normfactor())
-        ll <- lapply(split(ll,groups), FUN=function(x){
-          if(length(x)==1) x[[1]]
-          m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
-          SD <- apply(sapply(x,FUN=function(x) x[,2]),1,FUN=sd)
-          if(input$plot_errType=="SE") SD <- SD/sqrt(length(x))
-          data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
-        })
-        
+        if(is.null(gb))stop("No Groups defined. Can not print ribbon plot")
+        ll <- .getRibbonData(ll,input$plot_errType,groups)
         for(i in names(ll)){
           PlotData <- rbind(PlotData,cbind(PlotBy = i, ll[[i]]))
         }
         cols <- gColors()
-        cols <- as.data.frame(cols)
-        levels(PlotData$PlotBy) <- substring(rownames(cols),8)
-        cols <- cols[,1]
         
         p <- ggplot(PlotData,aes(Time,Diameter, group = PlotBy)) + 
           geom_line(aes(group = PlotBy, color = PlotBy), size = input$PlotLineSize) + 
@@ -353,6 +354,12 @@ app.server <- function(){
         ymin <- min(PlotData$Diameter_low)
       }
 
+      # ensure colors are assigned to correct sample/groups
+      cols <- as.data.frame(cols)
+      levels(PlotData$PlotBy) <- substring(rownames(cols),8)
+      cols <- cols[,1]
+      
+      #x and y axis descriptions
       if(input$plotXax != ""){
         p <- p + xlab(input$plotXax)
       }else{
@@ -364,15 +371,18 @@ app.server <- function(){
         p <- p + ylab(defaultYax())
       }
       
+      #plot points?
       if(input$showPoints){
         p <- p + geom_point(aes(color = PlotBy))
       }
 
+      #bins
       if(input$cb_plot_bins & binsOk()){
         p <- p + geom_rect(data = as.data.frame(bb$baseline),inherit.aes = FALSE, mapping =aes(xmin=V1,xmax=V2,ymin=ymin,ymax=ymax), fill=input$color_baselineBins, alpha = input$opacity_baselineBins)+
           geom_rect(data = as.data.frame(bb$response),inherit.aes = FALSE, mapping =aes(xmin=V1,xmax=V2,ymin=ymin,ymax=ymax), fill=input$color_responseBins, alpha = input$opacity_responseBins)
       }
 
+      #x and y axis boundaries and intervals
       if(!is.na(input$xax_low * input$xax_high * input$xax_step)){
         p <- p + scale_x_continuous(limits = c(input$xax_low, input$xax_high), breaks = seq(from = input$xax_low, to = input$xax_high, by = input$xax_step))
       }
@@ -380,6 +390,7 @@ app.server <- function(){
         p <- p + scale_y_continuous(limits = c(input$yax_low, input$yax_high), breaks = seq(from = input$yax_low, to = input$yax_high, by = input$yax_step))
       }
       
+      # cosmetics
       p <- p + 
         theme_bw() + 
         scale_color_manual(values = alpha(cols,1), name = legTit) +

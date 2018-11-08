@@ -28,7 +28,9 @@ app.ui <- function(){
     dashboardBody(
       tabItems(
         tabItem("samples",
-          box(width=6, title = "Samples",actionButton("removesamples", "remove all"),actionButton("testsamples", "load example"),tableOutput("samples_info")),
+          box(width=6, title = "Samples",actionButton("removesamples", "remove all"),actionButton("testsamples", "load example"),
+              tableOutput("samples_info"),
+              span(textOutput("sampleWarning"), style="color:red")),
           box(width=6, title = "Upload files",
             fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
             tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns.")
@@ -63,7 +65,7 @@ app.ui <- function(){
                tags$p("customize the interval at which data-points should be plotted"),
                checkboxInput("showPoints", label="Plot points", value=T),
                selectInput("plot_groupBy","Group by",choices=c(),selectize=T,multiple=T),
-               selectInput("plot_errType","Error type",choices=c("Standard error"="SE", "Standard deviation"="SD"),selectize=F),
+               selectInput("plot_errType","Error type",choices=c("Standard error"="SE", "Standard deviation"="SD","95% Confidence Interval"="CI"),selectize=F),
                sliderInput("opacity_SD", "Opacity of standard deviation/error", min=0, max=1, step=0.05, value=0.3)
             ),
             box( title="Normalization", width =6,
@@ -80,7 +82,7 @@ app.ui <- function(){
              sliderInput("opacity_responseBins", "Opacity of response bin(s)", min=0, max=1, step=0.05, value=0.1)
             )
         ),
-        tabItem("plot", height="1000px",
+        tabItem("plot", height="1500px",
           box(title = "Interactive plot",width=12,collapsible=T, collapsed=F, withSpinner(plotlyOutput("mainPlot", height="600px"))),
           box(title = "Exportable plot",width=12, collapsible=T, collapsed=T,
               column(4, selectInput("plotType","Select plot type", choices=c("Line plot" = "LP","Ribbon plot"="RP"))),

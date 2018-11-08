@@ -131,3 +131,14 @@ normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="
     bins
   })
 }
+
+.getRibbonData <- function(data, errortype, groups){
+  data <- lapply(split(data,groups), FUN=function(x){
+    if(length(x)==1) x[[1]]
+    m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
+    SD <- apply(sapply(x,FUN=function(x) x[,2]),1,FUN=sd)
+    if(errortype=="SE") SD <- SD/sqrt(length(x))
+    if(errortype =="CI") SD <- qnorm(0.975)*SD/sqrt(length(x))
+    data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
+  })
+}
