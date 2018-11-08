@@ -30,14 +30,36 @@ app.server <- function(){
               dat$meta=metadat
               updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
               selTestVar <- input$test_var
+              selAnimVar <- input$animal_var
               if(is.null(selTestVar) && "Group" %in% colnames(dat$meta)) selTestVar <- "Group"
               updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
+              updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
             }
           }
         }
       }, error=function(e){ stop(safeError(e)) })
     )
 
+    observeEvent(input$removesamples, {
+      dat$meta=NULL
+      dat$diameters=list()
+      updateSelectInput(session, "test_var", choices = character(0) , selected='')
+      updateSelectInput(session, "animal_var", choices = character(0) , selected='')
+      updateSelectInput(session, "plot_groupBy", choices = character(0) , selected='')
+      updateSelectInput(session, "preview_sample", choices = character(0) , selected='')
+    })
+    observeEvent(input$testsamples, {
+      example <- readRDS("P:/Lukas/Pupillometry/ExampleData.R")  #HAS TO BE UPDATED SO IT READS THE EXAMPLEDATA.R FROM A LIBRARY DATASET
+      dat$meta <- example$meta
+      dat$diameters <- example$diameters
+      updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
+      updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+      selTestVar <- input$test_var
+      selAnimVar <- input$animal_var
+      updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
+      updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
+    })
+    
     # raw data and metadata will be stored in the `dat` reactive object
     dat <- reactiveValues(
       meta=NULL,
@@ -70,15 +92,52 @@ app.server <- function(){
         return("Some of the files uploaded do not have matching metadata.")
       }
     })
+    
+    defaultleg <- reactive({
+      if(!is.null(input$plot_groupBy)){
+        input$plot_groupBy
+      }else{
+        "Sample"
+      }
+    })
+    defaultXax <- reactive({
+      if(input$TimeinMinutes){
+        "Time (min)"
+      }else{
+        "Time (s)"
+      }
+    })
+    defaultYax <- reactive({
+      if(input$cb_normalize){
+        "Diameter (% of baseline)"
+      }else{
+        "Diameter (pixels)"
+      }
+    })
 
     # prints the color inputs
     output$sColorsInputs <- renderUI({
       .app.ui.sColorsInputs(names(dat$diameters))
     })
+    output$gColorsInputs <- renderUI({
+      if(!is.null(input$plot_groupBy)){
+        groups <- apply(dat$meta[,input$plot_groupBy,drop=F],1,collapse="_",paste)
+        .app.ui.sColorsInputs(unique(groups),idPrefix='colorG_')
+      }
+    })
 
     sColors <- reactive({
       iN <- names(input)
       w <- grep("^colorI",iN)
+      if(length(w)==0) return(c())
+      sapply(iN[w],FUN=function(x) input[[x]] )
+    })
+    gColors <- reactive({
+      iN <- names(input)
+      groups <- apply(dat$meta[,input$plot_groupBy,drop=F],1,collapse="_",paste)
+      groups <- unique(groups)
+      groups <- paste("colorG",unique(groups),sep="_")
+      w <- match(groups,iN)
       if(length(w)==0) return(c())
       sapply(iN[w],FUN=function(x) input[[x]] )
     })
@@ -126,9 +185,12 @@ app.server <- function(){
       shapes <- c( .getBinAreas(bb$baseline, yrange, color=input$color_baselineBins, opacity=input$opacity_baselineBins ),
                    .getBinAreas(bb$response, yrange, color=input$color_responseBins, opacity=input$opacity_responseBins )
                    )
-      d$Time <- d$Time*input$timeFactor
+      d$Time <- d$Time * normfactor()
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
-      layout(p, shapes=shapes)
+      if(input$TimeinMinutes){
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+        }else
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
     })
 
     # prints the menu badge for bins
@@ -142,13 +204,20 @@ app.server <- function(){
     #################
     # BEGIN Stats
 
+    normfactor <-reactive({
+      1 / (input$timeFactor*(1+59*input$TimeinMinutes))
+    })
+    
     # normalized data
     normDat <- reactive({
-      if(!datOk() | !binsOk()) return(NULL)
+      if(!datOk()) return(NULL)
+      if( !input$cb_normalize & input$normDrift=="no" ) return({
+        lapply(dat$diameters, FUN=function(x){ x$Time <- x$Time*normfactor();x })
+        })
+      if(!datOk() | (!binsOk())) return(NULL)
       if(is.null(bins()$baseline) || is.null(bins()$response)) return(NULL)
-      normDiameters(dat, bins(), tf=input$timeFactor, normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift)
+      normDiameters(dat, bins(), tf=normfactor(), normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift)
     })
-
 
     output$test_results <- renderPrint({
       d <- normDat()
@@ -159,27 +228,32 @@ app.server <- function(){
       nrb <- nrow(bins()$response)
       allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
                         cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
-      d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),nrow(allbins)),])
-      testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0))
+      d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
+      testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var)
     })
 
     # END Stats
     #################
     # BEGIN plot tab
 
-
     output$mainPlot <- renderPlotly({
       ll <- normDat()
+      
+      bb <- bins()
+      if(is.null(bb$baseline) & input$cb_normalize){
+        stop("Warning, no baseline bin defined. Can not print normalized plot")
+      }
       if(is.null(ll)) return(NULL)
 
-      ll <- .avgIntervals(ll, input$interval)
+
+      ll <- .avgIntervals(ll, input$interval * normfactor())
 
       colors <- sColors()
 
       gb <- input$plot_groupBy
       if(!is.null(gb)){
-        groups <- apply(meta[,gb,drop=F],1,collapse=" ",paste)
-        colors <- colors[!duplicated(groups)]
+        groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
+        colors <- gColors()
         ll <- lapply(split(ll,groups), FUN=function(x){
           if(length(x)==1) x[[1]]
           m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
@@ -203,11 +277,168 @@ app.server <- function(){
       for(i in 1:length(ll)){
         a <- ll[[i]]
         if(all(c("Diameter_low","Diameter_high") %in% colnames(a))){
-          p <- add_polygons(p, x=c(a$Time,rev(a$Time)), y=c(a$Diameter_low,rev(a$Diameter_high)), color=colors[i], opacity=input$opacity_SD, name=paste(names(ll)[i],input$plot_errType) )
+          p <- add_polygons(p, x=c(a$Time,rev(a$Time)), y=c(a$Diameter_low,rev(a$Diameter_high)), color=I(colors[i]), opacity=input$opacity_SD, name=paste(names(ll)[i],input$plot_errType) )
         }
-        p <- add_trace(p, data=a, mode=ifelse(input$showPoints,"markers+lines","lines"), x=~Time, y=~Diameter, color=colors[i], name=names(ll)[i])
+        p <- add_trace(p, data=a, mode=ifelse(input$showPoints,"markers+lines","lines"), x=~Time, y=~Diameter, color=I(colors[i]), name=names(ll)[i])
       }
-      layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (% of baseline)"))
+      layout(p, shapes=shapes, xaxis=list(title=defaultXax()), yaxis=list(title=defaultYax()))
+      
     })
+    
+    output$ExportablePlot <- renderPlot({
+      bb <- bins()
+      if(is.null(bb$baseline) & input$cb_normalize){
+        stop("Warning, no baseline bin defined. Can not print normalized plot")
+      }
+      
+      selplotType <- input$plotType
+      updateSelectInput(session, "plotType", choices=c("Line plot" = "LP","Ribbon plot"="RP"), selected=selplotType)
+      if(input$legendTitle != ""){
+        legTit <- input$legendTitle
+      }else{
+        legTit <- defaultleg()
+      }
+      
+      PlotData <- NULL
+      if(selplotType == "LP"){
+        ll <- normDat()
+        for(i in names(ll)){
+          PlotData <- rbind(PlotData,cbind(FileName = i, PlotBy = i, ll[[i]]))
+        }
+        cols <- sColors()
+        
+        if(!is.null(input$plot_groupBy)){
+        gb <- input$plot_groupBy
+        groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
+        PlotData$PlotBy <- groups[PlotData$FileName]
+        cols <- gColors()
+        }
+        cols <- as.data.frame(cols)
+        levels(PlotData$PlotBy) <- substring(rownames(cols),8)
+        cols <- cols[,1]
+        p <- ggplot(PlotData,aes(Time,Diameter, group = FileName, color = PlotBy)) +
+          geom_line(aes(color = PlotBy),size = input$PlotLineSize)
+        ymax <- max(PlotData$Diameter)
+        ymin <- min(PlotData$Diameter)
+      }
+      
+      if(selplotType == "RP"){
+        gb <- input$plot_groupBy
+        if(is.null(gb))return(NULL)
+        ll <- normDat()
+        groups <- apply(dat$meta[,gb,drop=F],1,collapse="_",paste)
+        ll <- .avgIntervals(ll, input$interval * normfactor())
+        ll <- lapply(split(ll,groups), FUN=function(x){
+          if(length(x)==1) x[[1]]
+          m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
+          SD <- apply(sapply(x,FUN=function(x) x[,2]),1,FUN=sd)
+          if(input$plot_errType=="SE") SD <- SD/sqrt(length(x))
+          data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
+        })
+        
+        for(i in names(ll)){
+          PlotData <- rbind(PlotData,cbind(PlotBy = i, ll[[i]]))
+        }
+        cols <- gColors()
+        cols <- as.data.frame(cols)
+        levels(PlotData$PlotBy) <- substring(rownames(cols),8)
+        cols <- cols[,1]
+        
+        p <- ggplot(PlotData,aes(Time,Diameter, group = PlotBy)) + 
+          geom_line(aes(group = PlotBy, color = PlotBy), size = input$PlotLineSize) + 
+          geom_ribbon(aes(ymin = Diameter_low,ymax = Diameter_high,color = PlotBy, fill = PlotBy)) +
+          scale_fill_manual(values = alpha(cols, input$opacity_SD),name = legTit)
+        
+        ymax <- max(PlotData$Diameter_high)
+        ymin <- min(PlotData$Diameter_low)
+      }
+
+      if(input$plotXax != ""){
+        p <- p + xlab(input$plotXax)
+      }else{
+        p <- p + xlab(defaultXax())
+      }
+      if(input$plotYax != ""){
+        p <- p + ylab(input$plotYax)
+      }else{
+        p <- p + ylab(defaultYax())
+      }
+      
+      if(input$showPoints){
+        p <- p + geom_point(aes(color = PlotBy))
+      }
+
+      if(input$cb_plot_bins & binsOk()){
+        p <- p + geom_rect(data = as.data.frame(bb$baseline),inherit.aes = FALSE, mapping =aes(xmin=V1,xmax=V2,ymin=ymin,ymax=ymax), fill=input$color_baselineBins, alpha = input$opacity_baselineBins)+
+          geom_rect(data = as.data.frame(bb$response),inherit.aes = FALSE, mapping =aes(xmin=V1,xmax=V2,ymin=ymin,ymax=ymax), fill=input$color_responseBins, alpha = input$opacity_responseBins)
+      }
+
+      if(!is.na(input$xax_low * input$xax_high * input$xax_step)){
+        p <- p + scale_x_continuous(limits = c(input$xax_low, input$xax_high), breaks = seq(from = input$xax_low, to = input$xax_high, by = input$xax_step))
+      }
+      if(!is.na(input$yax_low * input$yax_high * input$yax_step)){
+        p <- p + scale_y_continuous(limits = c(input$yax_low, input$yax_high), breaks = seq(from = input$yax_low, to = input$yax_high, by = input$yax_step))
+      }
+      
+      p <- p + 
+        theme_bw() + 
+        scale_color_manual(values = alpha(cols,1), name = legTit) +
+        ggtitle(input$plotTilte) +
+        theme(plot.title = element_text(hjust = 0.5))
+      
+      PlotExport$p <- p
+      plot(PlotExport$p)
+      
+    },height = 600, width = 800)
+    
+    # END plot tab
+    #################
+    # BEGIN export
+    
+    datasetExport <- reactive({
+      switch(input$dataset, 
+             "Raw Data" = lapply(dat$diameters, FUN=function(x){ x$Time <- x$Time*normfactor();x }),
+             "Normalized Data" = normDat(),
+             "Bin Results" = {
+               d <- normDat()
+               if(is.null(d)) return(NULL)
+               if(is.null(dat$meta)) stop("No metadata given.")
+               meta <- dat$meta[names(d),]
+               nbl <- nrow(bins()$baseline)
+               nrb <- nrow(bins()$response)
+               allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
+                                 cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
+               cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
+             })
+      
+    })
+    PlotExport <- reactiveValues(
+      p = NULL
+    )
+    
+    output$exporttable <- renderTable({
+      head(datasetExport())
+    })
+    
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        paste(input$dataset,".csv", sep = "")
+      },
+      content = function(file){
+        write.csv(datasetExport(), file, row.names = FALSE)
+      }
+    )
+    
+    output$downloadPlot <- downloadHandler(
+      filename = function() {
+        "ExportedPlot.pdf"
+      },
+      content = function(file){
+        pdf(file,width=input$plotwidth, height=input$plotheight)
+        print(PlotExport$p)
+        dev.off()
+      }
+    )
+    
   }
 }
