@@ -99,7 +99,7 @@ app.ui <- function(){
 
 .app.ui.sColorsInputs <- function(filenames, idPrefix='colorI_'){
   if(is.null(filenames) || length(filenames)==0) return(NULL)
-  defCols <- plgINS::getQualitativePalette(length(filenames))
+  defCols <- getQualitativePalette(length(filenames))
   lapply( 1:length(filenames), id=idPrefix, colors=defCols, filenames=filenames, FUN=function(x, id, colors, filenames){
     colourInput(paste0(id,filenames[x]), label=paste("Color",x), value=colors[x])
   })

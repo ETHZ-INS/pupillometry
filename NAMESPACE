@@ -2,6 +2,7 @@
 
 export(app.server)
 export(app.ui)
+export(getQualitativePalette)
 export(getTimeDriftCoefficient)
 export(normDiameters)
 export(pupillometry.app)
