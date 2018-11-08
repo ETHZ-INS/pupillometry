@@ -184,3 +184,4 @@ getQualitativePalette <- function(nbcolors){
     if(errortype =="CI") SD <- qnorm(0.975)*SD/sqrt(length(x))
     data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
   })
+}

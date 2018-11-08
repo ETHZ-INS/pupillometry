@@ -4,7 +4,8 @@
 \alias{testResponse}
 \title{testResponse}
 \usage{
-testResponse(response_data, testVar = "Response", forms = list())
+testResponse(response_data, testVar = "Response", forms = list(),
+  drift = "no", blnorm = F, animal = "None")
 }
 \arguments{
 \item{response_data}{A data.frame}
