@@ -42,12 +42,22 @@ getTimeDriftCoefficient <- function(dat, responseBins){
 #'
 #' @return A list of normalized datasets.
 #' @export
-normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="no"){
+normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="no",win, strength, cleanselected = FALSE){
+
+  if(cleanselected){
+    #samples are cleaned up
+    ll <- cleanDat(dat, win, strength, cleanselected)
+  }else{
+    ll <- dat
+  }
+  
   normDrift <- match.arg(normDrift, c("no","global","specific"))
-  ll <- lapply(dat$diameters, tf=tf, FUN=function(x,tf){
+  
+  ll <- lapply(ll, tf=tf, FUN=function(x,tf){
     x$Time <- x$Time*tf
     return(x)
   })
+  
   if(normalizeToBaseline){
     # we normalize to the first baseline bin
     ll <- lapply(ll, bb=bins$baseline[1,], FUN=function(x,bb){
@@ -73,6 +83,34 @@ normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="
   return(ll)
 }
 
+#Function to remove outliers from the data. Will detect outliers within a window (win) that are a percentage (strength) over the median, and sets them to the average of the previous and next non-outlier diameters
+cleanDat <- function(dat, win, strength, selected = FALSE){
+  if(!selected)return(dat)
+  
+  clean <- dat
+  for(i in names(clean)){
+    for(j in 1:length(clean[[i]]$Diameter)){
+      if(abs(log2(median(clean[[i]][((clean[[i]]$Time > (clean[[i]]$Time[j] - win)) & (clean[[i]]$Time < (clean[[i]]$Time[j] + win))), "Diameter"]) / clean[[i]]$Diameter[j])) > abs(log2(100/strength))){
+        clean[[i]]$Outlier[j] <- TRUE
+      }else{
+        clean[[i]]$Outlier[j] <- FALSE
+      }
+    }
+  }
+  for(i in names(clean)){
+    for(j in 1:length(clean[[i]]$Diameter)){
+      if(clean[[i]]$Outlier[j]){
+        nextlow <- max(clean[[i]][!clean[[i]]$Outlier & clean[[i]]$Time < clean[[i]]$Time[j],"Time"])
+        nextup <- min(clean[[i]][!clean[[i]]$Outlier & clean[[i]]$Time > clean[[i]]$Time[j],"Time"])
+        if(nextlow == -Inf){clean[[i]]$Diameter[j] <- clean[[i]][clean[[i]]$Time == nextup, "Diameter"] }
+        else if(nextup == Inf){clean[[i]]$Diameter[j] <- clean[[i]][clean[[i]]$Time == nextlow, "Diameter"]}
+        else{clean[[i]]$Diameter[j] <- mean(c(clean[[i]][clean[[i]]$Time == nextup, "Diameter"],clean[[i]][clean[[i]]$Time == nextlow, "Diameter"]))}
+      }
+    }
+    clean[[i]]$Outlier <- NULL
+  }
+  return(clean)
+}
 
 
 # extracts bins from text input

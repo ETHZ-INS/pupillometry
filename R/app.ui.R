@@ -11,6 +11,7 @@ app.ui <- function(){
   library(shinydashboard)
   library(shinycssloaders)
   library(colourpicker)
+  library(stringr)
 
   shinyUI( dashboardPage(
     dashboardHeader(title="Pupillometry"),
@@ -18,6 +19,7 @@ app.ui <- function(){
       sidebarMenu(id="menu",
         menuItem("Files & samples", tabName="samples", badgeLabel=uiOutput("badgeText_samples"), badgeColor="blue"),
         menuItem("Bins", tabName="bins", badgeLabel=uiOutput("badgeText_bins"), badgeColor="blue"),
+        menuItem("Clean up", tabName="cleanup"),
         menuItem("Settings", tabName="settings"),
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
@@ -30,7 +32,8 @@ app.ui <- function(){
         tabItem("samples",
           box(width=6, title = "Samples",actionButton("removesamples", "remove all"),actionButton("testsamples", "load example"),
               tableOutput("samples_info"),
-              span(textOutput("sampleWarning"), style="color:red")),
+              span(textOutput("sampleWarning"), style="color:red"),
+              actionButton("CorrectRange", "Align files")),
           box(width=6, title = "Upload files",
             fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
             tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns.")
@@ -58,6 +61,19 @@ app.ui <- function(){
             tags$p("Start and end time should be separated by a dash ('-'), and different bins should be on different lines."),
             tags$p(style="color: ref; font-weight: 8;", renderText("check_bins"))
           )
+        ),
+        tabItem("cleanup",
+                box(width=12, title = "Clean-up",
+                    selectInput("preview_sample_cleaning", "Sample for preview", choices=c(), selectize=F),
+                    box(width = 6, title = "Raw sample", plotlyOutput("preview_raw")),
+                    box(width = 6, title = "Cleaned sample", plotlyOutput("preview_clean")),
+                    column(4,checkboxInput("cleanUp", "Clean up data", value = F), 
+                           tags$p(style="font-weight:8;", "If checked outliers will be removed in all samples. Each individual measurement will be compared to the median within a window centered around it. If an outlier is detected, the value at this time-point will be set to the average of the previous and the next non-outlier measurement")),
+                    column(4,numericInput("cleanWidth", label="Outlier-detection window size", value=10),
+                           tags$p(style="font-weight:8;", "Size of the window used for outlier detection (in seconds or minutes, depending on the settings in the Bins tab)")),
+                    column(4,numericInput("cleanStrength", label="Outlier-detection limit (% of median)", value=200),
+                           tags$p(style="font-weight:8;", "If the value of a measurement is this percentage over the median value within the window, it will be considered an outlier"))
+                )
         ),
         tabItem("settings",
             box(title="Plot",width =6,

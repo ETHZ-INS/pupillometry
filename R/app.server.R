@@ -22,11 +22,15 @@ app.server <- function(){
             names(import) <- c("Time","Diameter")
             dat$diameters[[basename(input$sampleFileInput$name[[i]])]] <- import
             updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+            updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
           }else{
             if(grepl("\\.csv$",input$sampleFileInput$name[[i]])){
               metadat <- as.data.frame(fread(input$sampleFileInput$datapath[[i]]))
-              row.names(metadat) <- metadat[,1]
+              rnames <- metadat[,1]
               metadat[,1] <- NULL
+              metadat <- data.frame(sapply(metadat, FUN = function(x){gsub("[^[:alnum:]+.-]", ".", x)}))
+              colnames(metadat) <- gsub("[^[:alnum:]+_.-]", ".", colnames(metadat))
+              rownames(metadat) <- rnames
               dat$meta=metadat
               updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
               selTestVar <- input$test_var
@@ -48,15 +52,17 @@ app.server <- function(){
       updateSelectInput(session, "animal_var", choices = character(0) , selected='')
       updateSelectInput(session, "plot_groupBy", choices = character(0) , selected='')
       updateSelectInput(session, "preview_sample", choices = character(0) , selected='')
+      updateSelectInput(session, "preview_sample_cleaning", choices = character(0) , selected='')
     })
     
     #load examplary samples
     observeEvent(input$testsamples, {
-      example <- readRDS("P:/Lukas/Pupillometry/ExampleData.R")  #HAS TO BE UPDATED SO IT READS THE EXAMPLEDATA.R FROM A LIBRARY DATASET
+      data("example", package = "pupillometry")
       dat$meta <- example$meta
       dat$diameters <- example$diameters
       updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
       updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+      updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
       selTestVar <- input$test_var
       selAnimVar <- input$animal_var
       updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
@@ -68,7 +74,28 @@ app.server <- function(){
       meta=NULL,
       diameters=list()
     )
-
+    
+    #alligns data of all files to be in the same range
+    observeEvent(input$CorrectRange, {
+      mins <- NULL
+      aligned <- dat$diameters
+      for(i in aligned){
+        mins <- append(mins,min(i[,1]))
+      }
+      for(i in names(aligned)){
+        aligned[[i]] <- aligned[[i]][aligned[[i]][,1] >= max(mins),]
+        aligned[[i]][,1] <- aligned[[i]][,1] - (min(aligned[[i]][,1]) - max(mins))
+      }
+      maxs <- NULL
+      for(i in aligned){
+        maxs <- append(maxs,max(i[,1]))
+      }
+      for(i in names(aligned)){
+        aligned[[i]] <- aligned[[i]][aligned[[i]][,1] <= min(maxs),]
+      }
+      dat$diameters <- aligned
+    })
+    
     # checks whether the data and metadata match
     datOk <- reactive({
       length( dat$diameters ) > 0 &&
@@ -80,6 +107,7 @@ app.server <- function(){
     Filesanity <- reactive({
       length(unique(sapply(dat$diameters,FUN=function(x){ paste(range(x$Time),collapse="-") }))) <= 1
     })
+    
     
     output$samples_info <- renderTable({
       cbind(file=names(dat$diameters), range=sapply(dat$diameters,FUN=function(x){ paste(range(x$Time),collapse="-") }))
@@ -116,6 +144,7 @@ app.server <- function(){
       }
     })
 
+    #default X axis description
     defaultXax <- reactive({
       if(input$TimeinMinutes){
         "Time (min)"
@@ -124,6 +153,7 @@ app.server <- function(){
       }
     })
 
+    #default Y axis description
     defaultYax <- reactive({
       if(input$cb_normalize){
         "Diameter (% of baseline)"
@@ -143,12 +173,15 @@ app.server <- function(){
       }
     })
 
+    #sample colors
     sColors <- reactive({
       iN <- names(input)
       w <- grep("^colorI",iN)
       if(length(w)==0) return(c())
       sapply(iN[w],FUN=function(x) input[[x]] )
     })
+    
+    #group colors
     gColors <- reactive({
       iN <- names(input)
       groups <- apply(dat$meta[,input$plot_groupBy,drop=F],1,collapse="_",paste)
@@ -197,19 +230,51 @@ app.server <- function(){
     output$preview_bins <- renderPlotly({
       if(is.null(input$preview_sample)) return(NULL)
       bb <- bins()
-      d <- dat$diameters[[input$preview_sample]]
+      d <- normDat()[[input$preview_sample]]
       yrange <- range(dat$diameters[[input$preview_sample]]$Diameter)
       shapes <- c( .getBinAreas(bb$baseline, yrange, color=input$color_baselineBins, opacity=input$opacity_baselineBins ),
                    .getBinAreas(bb$response, yrange, color=input$color_responseBins, opacity=input$opacity_responseBins )
                    )
-      d$Time <- d$Time * normfactor()
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
       if(input$TimeinMinutes){
         layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
         }else
         layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
     })
+    
+    #prints the cleaning preview (raw)
+    output$preview_raw <- renderPlotly({
+      if(is.null(input$preview_sample_cleaning)) return(NULL)
+      bb <- bins()
+      d <- dat$diameters[[input$preview_sample_cleaning]]
+      yrange <- range(dat$diameters[[input$preview_sample_cleaning]]$Diameter)
+      shapes <- c( .getBinAreas(bb$baseline, yrange, color=input$color_baselineBins, opacity=input$opacity_baselineBins ),
+                   .getBinAreas(bb$response, yrange, color=input$color_responseBins, opacity=input$opacity_responseBins )
+      )
+      d$Time <- d$Time * normfactor()
+      p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
+      if(input$TimeinMinutes){
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+      }else
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
+    })
 
+    #prints the cleaning preview (cleaned)
+    output$preview_clean <- renderPlotly({
+      if(is.null(input$preview_sample_cleaning)) return(NULL)
+      bb <- bins()
+      d <- normDat()[[input$preview_sample_cleaning]]
+      yrange <- range(dat$diameters[[input$preview_sample_cleaning]]$Diameter)
+      shapes <- c( .getBinAreas(bb$baseline, yrange, color=input$color_baselineBins, opacity=input$opacity_baselineBins ),
+                   .getBinAreas(bb$response, yrange, color=input$color_responseBins, opacity=input$opacity_responseBins )
+      )
+      p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
+      if(input$TimeinMinutes){
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+      }else
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
+    })
+    
     # prints the menu badge for bins
     output$badgeText_bins <- renderText({
       if(binsOk()) return("ok")
@@ -226,15 +291,17 @@ app.server <- function(){
       1 / (input$timeFactor*(1+59*input$TimeinMinutes))
     })
     
+    
     # normalized data
     normDat <- reactive({
       if(!datOk()) return(NULL)
+      norm <- dat
       if( !input$cb_normalize & input$normDrift=="no" ) return({
-        lapply(dat$diameters, FUN=function(x){ x$Time <- x$Time*normfactor();x })
+        lapply(cleanDat(norm$diameters, input$cleanWidth/(2*normfactor()), input$cleanStrength, input$cleanUp), FUN=function(x){ x$Time <- x$Time*normfactor();x })
         })
       if(!datOk() | (!binsOk())) return(NULL)
       if(is.null(bins()$baseline) || is.null(bins()$response)) return(NULL)
-      normDiameters(dat, bins(), tf=normfactor(), normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift)
+      normDiameters(norm$diameters, bins(), tf=normfactor(), normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift, input$cleanWidth/(2*normfactor()), input$cleanStrength, input$cleanUp)
     })
 
     output$test_results <- renderPrint({
@@ -247,7 +314,7 @@ app.server <- function(){
       allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
                         cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
       d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
-      testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var)
+      testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var, input$cleanUp)
     })
 
     # END Stats
