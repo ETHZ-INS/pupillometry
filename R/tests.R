@@ -67,7 +67,7 @@ testResponse <- function(response_data, testVar="Response", forms=list(), drift 
     model <- lm(as.formula(form), data=response_data)
     model.null <- lm(as.formula(form0), data=response_data)
   }
-
+  
   cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
   cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
   print(anova(model.null,model))

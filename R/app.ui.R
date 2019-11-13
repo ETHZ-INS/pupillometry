@@ -12,6 +12,7 @@ app.ui <- function(){
   library(shinycssloaders)
   library(colourpicker)
   library(stringr)
+  library(DT)
 
   shinyUI( dashboardPage(
     dashboardHeader(title="Pupillometry"),
@@ -29,17 +30,18 @@ app.ui <- function(){
     ),
     dashboardBody(
       tabItems(
-        tabItem("samples",
-          box(width=6, title = "Samples",actionButton("removesamples", "remove all"),actionButton("testsamples", "load example"),
-              tableOutput("samples_info"),
+        tabItem("samples", height="1500px",
+          box(width=12, title = "Upload files",
+              fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
+              tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns."),actionButton("removesamples", "remove all"),actionButton("testsamples", "load example")
+          ),
+          box(width=4, title = "Samples",
+              DT::dataTableOutput('samples_info'),
               span(textOutput("sampleWarning"), style="color:red"),
               actionButton("CorrectRange", "Align files")),
-          box(width=6, title = "Upload files",
-            fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
-            tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns.")
-          ),
-          box(width=8, title="Samples Metadata", tableOutput("samples_metadata"), tags$p(textOutput("check_metadata"))),
-          box(width=4, title="Samples colors", uiOutput("sColorsInputs"))
+
+          box(width=5, title="Samples Metadata", DT::dataTableOutput('samples_metadata'), tags$p(textOutput("check_metadata"))),
+          box(width=3, title="Samples colors", uiOutput("sColorsInputs"))
         ),
         tabItem("bins",
           box(width=12,

@@ -90,6 +90,10 @@ cleanDat <- function(dat, win, strength, selected = FALSE){
   clean <- dat
   for(i in names(clean)){
     for(j in 1:length(clean[[i]]$Diameter)){
+      if(is.na(clean[[i]]$Diameter[j])){
+        print(clean[[i]]$Diameter[j])
+        clean[[i]]$Outlier[j] <- TRUE
+      }
       if(abs(log2(median(clean[[i]][((clean[[i]]$Time > (clean[[i]]$Time[j] - win)) & (clean[[i]]$Time < (clean[[i]]$Time[j] + win))), "Diameter"]) / clean[[i]]$Diameter[j])) > abs(log2(100/strength))){
         clean[[i]]$Outlier[j] <- TRUE
       }else{
@@ -166,9 +170,15 @@ cleanDat <- function(dat, win, strength, selected = FALSE){
       if(length(w)==0)  return(NA)
       mean(d[w,2],na.rm=T)
     })
+    bins$MaxDiameter <- sapply(1:nrow(bins), bins=bins, d=x, FUN=function(i,bins,d){
+      w <- which(d[,1]>=bins[i,1] & d[,1]<=bins[i,2])
+      if(length(w)==0)  return(NA)
+      max(d[w,2],na.rm=T)
+    })
     bins
   })
 }
+
 
 #' getQualitativePalette
 #'
@@ -184,7 +194,7 @@ getQualitativePalette <- function(nbcolors){
   nbcolors <- round(nbcolors)
   if(nbcolors>22){
     library(randomcoloR)
-    distinctColorPalette(nbcolors)
+    return(distinctColorPalette(nbcolors))
   }
   switch(as.character(nbcolors),
          "1"=c("#4477AA"),
@@ -214,7 +224,7 @@ getQualitativePalette <- function(nbcolors){
 
 
 .getRibbonData <- function(data, errortype, groups){
-  data <- lapply(split(data,groups), FUN=function(x){
+  data <- lapply(split(data,groups[as.character(names(data))]), FUN=function(x){
     if(length(x)==1) x[[1]]
     m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
     SD <- apply(sapply(x,FUN=function(x) x[,2]),1,FUN=sd)

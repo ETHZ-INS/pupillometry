@@ -109,8 +109,9 @@ app.server <- function(){
     })
     
     
-    output$samples_info <- renderTable({
-      cbind(file=names(dat$diameters), range=sapply(dat$diameters,FUN=function(x){ paste(range(x$Time),collapse="-") }))
+    output$samples_info <- DT::renderDataTable({
+      if(is.null(dat$diameters))return(NULL)
+      DT::datatable(cbind(file=names(dat$diameters), range=sapply(dat$diameters,FUN=function(x){ paste(range(x$Time),collapse="-") })),rownames = FALSE)
     })
     
     output$sampleWarning <- renderText({
@@ -120,9 +121,9 @@ app.server <- function(){
     
     
     # prints the metadata
-    output$samples_metadata <- renderTable({
+    output$samples_metadata <- DT::renderDataTable({
       if(is.null(dat$meta)) return(NULL)
-      cbind(filename=rownames(dat$meta), dat$meta)
+      DT::datatable(cbind(filename=rownames(dat$meta), dat$meta),rownames = FALSE)
     })
 
     # prints error for non-matching data/metadata
@@ -156,9 +157,9 @@ app.server <- function(){
     #default Y axis description
     defaultYax <- reactive({
       if(input$cb_normalize){
-        "Diameter (% of baseline)"
+        "Radius (% of baseline)"
       }else{
-        "Diameter (pixels)"
+        "Radius (pixels)"
       }
     })
 
@@ -185,8 +186,7 @@ app.server <- function(){
     gColors <- reactive({
       iN <- names(input)
       groups <- apply(dat$meta[,input$plot_groupBy,drop=F],1,collapse="_",paste)
-      groups <- unique(groups)
-      groups <- paste("colorG",unique(groups),sep="_")
+      groups <- paste("colorG",levels(as.factor(groups)),sep="_")
       w <- match(groups,iN)
       if(length(w)==0) return(c())
       sapply(iN[w],FUN=function(x) input[[x]] )
@@ -237,9 +237,9 @@ app.server <- function(){
                    )
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
       if(input$TimeinMinutes){
-        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Radius (pixels)"))
         }else
-        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Radius (pixels)"))
     })
     
     #prints the cleaning preview (raw)
@@ -254,9 +254,9 @@ app.server <- function(){
       d$Time <- d$Time * normfactor()
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
       if(input$TimeinMinutes){
-        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Radius (pixels)"))
       }else
-        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Radius (pixels)"))
     })
 
     #prints the cleaning preview (cleaned)
@@ -270,9 +270,9 @@ app.server <- function(){
       )
       p <- plot_ly(d, x=~Time, y=~Diameter, type="scatter",mode="markers")
       if(input$TimeinMinutes){
-        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Diameter (pixels)"))
+        layout(p, shapes=shapes, xaxis=list(title="Time (min)"), yaxis=list(title="Radius (pixels)"))
       }else
-        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Diameter (pixels)"))
+        layout(p, shapes=shapes, xaxis=list(title="Time (s)"), yaxis=list(title="Radius (pixels)"))
     })
     
     # prints the menu badge for bins
@@ -393,10 +393,10 @@ app.server <- function(){
         cols <- sColors()
         
         if(!is.null(input$plot_groupBy)){
-        PlotData$PlotBy <- groups[PlotData$FileName]
+        PlotData$PlotBy <- groups[as.character(PlotData$FileName)]
         cols <- gColors()
         }
-
+        
         p <- ggplot(PlotData,aes(Time,Diameter, group = FileName, color = PlotBy)) +
           geom_line(aes(color = PlotBy),size = input$PlotLineSize)
         ymax <- max(PlotData$Diameter)
@@ -422,9 +422,9 @@ app.server <- function(){
       }
 
       # ensure colors are assigned to correct sample/groups
+      
       cols <- as.data.frame(cols)
-      levels(PlotData$PlotBy) <- substring(rownames(cols),8)
-      cols <- cols[,1]
+      cols <- cols[match(substring(rownames(cols),8),levels(as.factor(PlotData$PlotBy))),1]
       
       #x and y axis descriptions
       if(input$plotXax != ""){
