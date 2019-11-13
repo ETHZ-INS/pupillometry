@@ -5,7 +5,7 @@
 #' @param forms An optional list with slots `full` and `reduced` containing the respective formulas.
 #'
 #' @export
-testResponse <- function(response_data, testVar="Response", forms=list(), drift = "no", blnorm = F, animal = "None"){
+testResponse <- function(response_data, testVar="Response", forms=list(), drift = "no", blnorm = F, animal = "None", cleaned = F){
   library(lme4)
   library(lmerTest)
   library(lsmeans)
@@ -15,6 +15,9 @@ testResponse <- function(response_data, testVar="Response", forms=list(), drift 
   }
   if(blnorm){
     cat("WARNING!!!: Data is normalized to first baseline. Use of non-normalized data for statistics is recommended \n\n")
+  }
+  if(cleaned){
+    cat("WARNING!!!: Outliers were removed from the data. Ensure this did not introduce any artefacts \n\n")
   }
   
   if(!is.null(response_data$Time)){
@@ -64,7 +67,7 @@ testResponse <- function(response_data, testVar="Response", forms=list(), drift 
     model <- lm(as.formula(form), data=response_data)
     model.null <- lm(as.formula(form0), data=response_data)
   }
-
+  
   cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
   cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
   print(anova(model.null,model))

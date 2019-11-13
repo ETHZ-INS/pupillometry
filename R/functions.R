@@ -42,12 +42,22 @@ getTimeDriftCoefficient <- function(dat, responseBins){
 #'
 #' @return A list of normalized datasets.
 #' @export
-normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="no"){
+normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="no",win, strength, cleanselected = FALSE){
+
+  if(cleanselected){
+    #samples are cleaned up
+    ll <- cleanDat(dat, win, strength, cleanselected)
+  }else{
+    ll <- dat
+  }
+  
   normDrift <- match.arg(normDrift, c("no","global","specific"))
-  ll <- lapply(dat$diameters, tf=tf, FUN=function(x,tf){
+  
+  ll <- lapply(ll, tf=tf, FUN=function(x,tf){
     x$Time <- x$Time*tf
     return(x)
   })
+  
   if(normalizeToBaseline){
     # we normalize to the first baseline bin
     ll <- lapply(ll, bb=bins$baseline[1,], FUN=function(x,bb){
@@ -73,6 +83,38 @@ normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="
   return(ll)
 }
 
+#Function to remove outliers from the data. Will detect outliers within a window (win) that are a percentage (strength) over the median, and sets them to the average of the previous and next non-outlier diameters
+cleanDat <- function(dat, win, strength, selected = FALSE){
+  if(!selected)return(dat)
+  
+  clean <- dat
+  for(i in names(clean)){
+    for(j in 1:length(clean[[i]]$Diameter)){
+      if(is.na(clean[[i]]$Diameter[j])){
+        print(clean[[i]]$Diameter[j])
+        clean[[i]]$Outlier[j] <- TRUE
+      }
+      if(abs(log2(median(clean[[i]][((clean[[i]]$Time > (clean[[i]]$Time[j] - win)) & (clean[[i]]$Time < (clean[[i]]$Time[j] + win))), "Diameter"]) / clean[[i]]$Diameter[j])) > abs(log2(100/strength))){
+        clean[[i]]$Outlier[j] <- TRUE
+      }else{
+        clean[[i]]$Outlier[j] <- FALSE
+      }
+    }
+  }
+  for(i in names(clean)){
+    for(j in 1:length(clean[[i]]$Diameter)){
+      if(clean[[i]]$Outlier[j]){
+        nextlow <- max(clean[[i]][!clean[[i]]$Outlier & clean[[i]]$Time < clean[[i]]$Time[j],"Time"])
+        nextup <- min(clean[[i]][!clean[[i]]$Outlier & clean[[i]]$Time > clean[[i]]$Time[j],"Time"])
+        if(nextlow == -Inf){clean[[i]]$Diameter[j] <- clean[[i]][clean[[i]]$Time == nextup, "Diameter"] }
+        else if(nextup == Inf){clean[[i]]$Diameter[j] <- clean[[i]][clean[[i]]$Time == nextlow, "Diameter"]}
+        else{clean[[i]]$Diameter[j] <- mean(c(clean[[i]][clean[[i]]$Time == nextup, "Diameter"],clean[[i]][clean[[i]]$Time == nextlow, "Diameter"]))}
+      }
+    }
+    clean[[i]]$Outlier <- NULL
+  }
+  return(clean)
+}
 
 
 # extracts bins from text input
@@ -128,9 +170,15 @@ normDiameters <- function(dat, bins, tf=1, normalizeToBaseline=TRUE, normDrift="
       if(length(w)==0)  return(NA)
       mean(d[w,2],na.rm=T)
     })
+    bins$MaxDiameter <- sapply(1:nrow(bins), bins=bins, d=x, FUN=function(i,bins,d){
+      w <- which(d[,1]>=bins[i,1] & d[,1]<=bins[i,2])
+      if(length(w)==0)  return(NA)
+      max(d[w,2],na.rm=T)
+    })
     bins
   })
 }
+
 
 #' getQualitativePalette
 #'
@@ -146,7 +194,7 @@ getQualitativePalette <- function(nbcolors){
   nbcolors <- round(nbcolors)
   if(nbcolors>22){
     library(randomcoloR)
-    distinctColorPalette(nbcolors)
+    return(distinctColorPalette(nbcolors))
   }
   switch(as.character(nbcolors),
          "1"=c("#4477AA"),
@@ -172,4 +220,16 @@ getQualitativePalette <- function(nbcolors){
          "21"= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788"),
          "22"= c("#771155", "#AA4488", "#CC99BB", "#114477", "#4477AA", "#77AADD", "#117777", "#44AAAA", "#77CCCC", "#117744", "#44AA77", "#88CCAA", "#777711", "#AAAA44", "#DDDD77", "#774411", "#AA7744", "#DDAA77", "#771122", "#AA4455", "#DD7788", "black")
   )
+}
+
+
+.getRibbonData <- function(data, errortype, groups){
+  data <- lapply(split(data,groups[as.character(names(data))]), FUN=function(x){
+    if(length(x)==1) x[[1]]
+    m <- rowMeans(sapply(x,FUN=function(x) x[,2]))
+    SD <- apply(sapply(x,FUN=function(x) x[,2]),1,FUN=sd)
+    if(errortype=="SE") SD <- SD/sqrt(length(x))
+    if(errortype =="CI") SD <- qnorm(0.975)*SD/sqrt(length(x))
+    data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
+  })
 }

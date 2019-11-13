@@ -11,6 +11,8 @@ app.ui <- function(){
   library(shinydashboard)
   library(shinycssloaders)
   library(colourpicker)
+  library(stringr)
+  library(DT)
 
   shinyUI( dashboardPage(
     dashboardHeader(title="Pupillometry"),
@@ -18,6 +20,7 @@ app.ui <- function(){
       sidebarMenu(id="menu",
         menuItem("Files & samples", tabName="samples", badgeLabel=uiOutput("badgeText_samples"), badgeColor="blue"),
         menuItem("Bins", tabName="bins", badgeLabel=uiOutput("badgeText_bins"), badgeColor="blue"),
+        menuItem("Clean up", tabName="cleanup"),
         menuItem("Settings", tabName="settings"),
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
@@ -27,14 +30,18 @@ app.ui <- function(){
     ),
     dashboardBody(
       tabItems(
-        tabItem("samples",
-          box(width=6, title = "Samples",actionButton("removesamples", "remove all"),actionButton("testsamples", "load example"),tableOutput("samples_info")),
-          box(width=6, title = "Upload files",
-            fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
-            tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns.")
+        tabItem("samples", height="1500px",
+          box(width=12, title = "Upload files",
+              fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
+              tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns."),actionButton("removesamples", "remove all"),actionButton("testsamples", "load example")
           ),
-          box(width=8, title="Samples Metadata", tableOutput("samples_metadata"), tags$p(textOutput("check_metadata"))),
-          box(width=4, title="Samples colors", uiOutput("sColorsInputs"))
+          box(width=4, title = "Samples",
+              DT::dataTableOutput('samples_info'),
+              span(textOutput("sampleWarning"), style="color:red"),
+              actionButton("CorrectRange", "Align files")),
+
+          box(width=5, title="Samples Metadata", DT::dataTableOutput('samples_metadata'), tags$p(textOutput("check_metadata"))),
+          box(width=3, title="Samples colors", uiOutput("sColorsInputs"))
         ),
         tabItem("bins",
           box(width=12,
@@ -57,13 +64,26 @@ app.ui <- function(){
             tags$p(style="color: ref; font-weight: 8;", renderText("check_bins"))
           )
         ),
+        tabItem("cleanup",
+                box(width=12, title = "Clean-up",
+                    selectInput("preview_sample_cleaning", "Sample for preview", choices=c(), selectize=F),
+                    box(width = 6, title = "Raw sample", plotlyOutput("preview_raw")),
+                    box(width = 6, title = "Cleaned sample", plotlyOutput("preview_clean")),
+                    column(4,checkboxInput("cleanUp", "Clean up data", value = F), 
+                           tags$p(style="font-weight:8;", "If checked outliers will be removed in all samples. Each individual measurement will be compared to the median within a window centered around it. If an outlier is detected, the value at this time-point will be set to the average of the previous and the next non-outlier measurement")),
+                    column(4,numericInput("cleanWidth", label="Outlier-detection window size", value=10),
+                           tags$p(style="font-weight:8;", "Size of the window used for outlier detection (in seconds or minutes, depending on the settings in the Bins tab)")),
+                    column(4,numericInput("cleanStrength", label="Outlier-detection limit (% of median)", value=200),
+                           tags$p(style="font-weight:8;", "If the value of a measurement is this percentage over the median value within the window, it will be considered an outlier"))
+                )
+        ),
         tabItem("settings",
             box(title="Plot",width =6,
                numericInput("interval", label="Interval size (in seconds)", min=0, max=10, step=0.2, value=0.2),
                tags$p("customize the interval at which data-points should be plotted"),
                checkboxInput("showPoints", label="Plot points", value=T),
                selectInput("plot_groupBy","Group by",choices=c(),selectize=T,multiple=T),
-               selectInput("plot_errType","Error type",choices=c("Standard error"="SE", "Standard deviation"="SD"),selectize=F),
+               selectInput("plot_errType","Error type",choices=c("Standard error"="SE", "Standard deviation"="SD","95% Confidence Interval"="CI"),selectize=F),
                sliderInput("opacity_SD", "Opacity of standard deviation/error", min=0, max=1, step=0.05, value=0.3)
             ),
             box( title="Normalization", width =6,
@@ -80,7 +100,7 @@ app.ui <- function(){
              sliderInput("opacity_responseBins", "Opacity of response bin(s)", min=0, max=1, step=0.05, value=0.1)
             )
         ),
-        tabItem("plot", height="1000px",
+        tabItem("plot", height="1500px",
           box(title = "Interactive plot",width=12,collapsible=T, collapsed=F, withSpinner(plotlyOutput("mainPlot", height="600px"))),
           box(title = "Exportable plot",width=12, collapsible=T, collapsed=T,
               column(4, selectInput("plotType","Select plot type", choices=c("Line plot" = "LP","Ribbon plot"="RP"))),
