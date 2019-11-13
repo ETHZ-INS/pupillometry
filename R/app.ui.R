@@ -132,12 +132,11 @@ app.ui <- function(){
             column(6, textInput("test_formula0", "Enter reduced formula")
             )
           ),
-          tags$div(style="margin: 10px;", fluidRow( verbatimTextOutput("test_results") )),
-          downloadButton("downloadTests", "Download")
+          tags$div(style="margin: 10px;", fluidRow( verbatimTextOutput("test_results") ))
                
         ),
         tabItem("export",
-                selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results")),
+                selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results","Test Results")),
                 downloadButton("downloadData", "Download"),
                 tableOutput("exporttable")
         ),
