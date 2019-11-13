@@ -138,6 +138,7 @@ app.ui <- function(){
         tabItem("export",
                 selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results","Test Results")),
                 downloadButton("downloadData", "Download"),
+		tags$h3("Preview:"),
                 tableOutput("exporttable")
         ),
         tabItem("about",
