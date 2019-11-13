@@ -303,11 +303,11 @@ app.server <- function(){
       if(is.null(bins()$baseline) || is.null(bins()$response)) return(NULL)
       normDiameters(norm$diameters, bins(), tf=normfactor(), normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift, input$cleanWidth/(2*normfactor()), input$cleanStrength, input$cleanUp)
     })
-
-    output$test_results <- renderPrint({
+      
+    test_results <- reactive({
       d <- normDat()
       if(is.null(d)) return(NULL)
-      if(is.null(dat$meta)) stop("No metadata given.")
+      if(is.null(dat$meta)) return("No metadata given.")
       meta <- dat$meta[names(d),]
       nbl <- nrow(bins()$baseline)
       nrb <- nrow(bins()$response)
@@ -316,6 +316,8 @@ app.server <- function(){
       d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
       testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var, input$cleanUp)
     })
+
+    output$test_results <- renderPrint(test_results())
 
     # END Stats
     #################
@@ -504,6 +506,13 @@ app.server <- function(){
       },
       content = function(file){
         write.csv(datasetExport(), file, row.names = FALSE)
+      }
+    )
+                               
+    ouput$downloadTests <- downloadHandler(
+      filename="ExportedTests.txt",
+      content=function(file){
+        cat(test_results(), file=file)
       }
     )
     
