@@ -489,7 +489,8 @@ app.server <- function(){
                allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
                                  cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
                cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
-             })
+             },
+             "Test Results" = test_results())
       
     })
     PlotExport <- reactiveValues(
@@ -502,20 +503,13 @@ app.server <- function(){
     
     output$downloadData <- downloadHandler(
       filename = function() {
-        paste(input$dataset,".csv", sep = "")
+        paste(input$dataset,ifelse(input$dataset=="Test Results",".txt",".csv"), sep = "")
       },
       content = function(file){
         write.csv(datasetExport(), file, row.names = FALSE)
       }
     )
-                               
-    ouput$downloadTests <- downloadHandler(
-      filename="ExportedTests.txt",
-      content=function(file){
-        cat(test_results(), file=file)
-      }
-    )
-    
+
     output$downloadPlot <- downloadHandler(
       filename = function() {
         "ExportedPlot.pdf"
