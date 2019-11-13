@@ -68,11 +68,13 @@ testResponse <- function(response_data, testVar="Response", forms=list(), drift 
     model.null <- lm(as.formula(form0), data=response_data)
   }
   
-  cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
-  cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
-  print(anova(model.null,model))
-  cat("\n =============== STATISTICAL RESULTS: =============== \n\n")
-  print(summary(model))
-  cat("\n =============== PAIRWISE POST-HOC COMPARISONS: =============== \n\n")
-  print(lsmeans(model, as.formula(paste0("pairwise~",paste(tTerms,collapse="+"))), adjust="tukey"))
+  capture.output({
+    cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
+    cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
+    print(anova(model.null,model))
+    cat("\n =============== STATISTICAL RESULTS: =============== \n\n")
+    print(summary(model))
+    cat("\n =============== PAIRWISE POST-HOC COMPARISONS: =============== \n\n")
+    print(lsmeans(model, as.formula(paste0("pairwise~",paste(tTerms,collapse="+"))), adjust="tukey"))
+  })
 }
