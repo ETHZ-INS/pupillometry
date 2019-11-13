@@ -317,7 +317,7 @@ app.server <- function(){
       testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var, input$cleanUp)
     })
 
-    output$test_results <- renderPrint(test_results())
+    output$test_results <- renderPrint(cat(test_results(), sep="\n"))
 
     # END Stats
     #################
@@ -506,7 +506,11 @@ app.server <- function(){
         paste(input$dataset,ifelse(input$dataset=="Test Results",".txt",".csv"), sep = "")
       },
       content = function(file){
-        write.csv(datasetExport(), file, row.names = FALSE)
+	if(input$dataset=="Test Results"){
+		cat(datasetExport(), file=file, sep="\n")
+	}else{
+	        write.csv(datasetExport(), file, row.names = FALSE)
+	}
       }
     )
 
