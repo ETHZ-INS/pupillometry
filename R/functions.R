@@ -233,3 +233,58 @@ getQualitativePalette <- function(nbcolors){
     data.frame(Time=x[[1]][,1], Diameter=m, Diameter_low=m-SD, Diameter_high=m+SD)
   })
 }
+
+TransformDLC <- function(data,header,likelihood_cutoff, completeness_cutoff, center_point,input_points){
+  library(imputeTS)
+  out <- list()
+  pupil_points <- str_split(input_points,pattern = ",")[[1]]
+  point <- t(data.frame(sapply(header[1,], as.character), stringsAsFactors=FALSE))
+  coord <- t(data.frame(sapply(header[2,], as.character), stringsAsFactors=FALSE))
+  
+  #filter out points with to many bad values completely and interpolate any points that have to low likelihood
+  for(j in pupil_points){
+    if(sum(data[,point == j & coord == "likelihood"] >= likelihood_cutoff) < completeness_cutoff * dim(data)[1]){
+      pupil_points <- pupil_points[!pupil_points %in% j]
+      out$Report <- append(out$Report,paste("Dropping point ",j,": To many low likelihood values", sep = ""))
+    }else{
+      to_adjust <- data[,point == j & coord =="likelihood"] <= likelihood_cutoff
+      data[to_adjust, point == j & coord == "x"] <- NA
+      data[to_adjust, point == j & coord == "y"] <- NA
+      data[,point == j & coord == "x"] <- na.interpolation(data[,point == j & coord == "x"])
+      data[,point == j & coord == "y"] <- na.interpolation(data[,point == j & coord == "y"])
+    }
+  }
+  #interploate center point. If to many center points are missing return error message
+  to_adjust <- data[,point == center_point & coord =="likelihood"] <= likelihood_cutoff
+  if(sum(!to_adjust) < completeness_cutoff* dim(data)[1]){
+    out$Report <- append(out$Report,"WARNING: CENTER POINT HAS TO MANY LOW LIKELIHOOD VALUES. ANALYSIS NOT POSSIBLE!!! Dropping file")
+    out$dat <- NULL
+    return(out)
+  }
+  data[to_adjust, point == center_point & coord == "x"] <- NA
+  data[to_adjust, point == center_point & coord == "y"] <- NA
+  data[,point == center_point & coord == "x"] <- na.interpolation(data[,point == center_point & coord == "x"])
+  data[,point == center_point & coord == "y"] <- na.interpolation(data[,point == center_point & coord == "y"])
+  
+  if(length(pupil_points) < 1){
+    out$Report <- append(out$Report,"WARNING: ALL PUPIL POINTS HAVE TO MANY LOW LIKELIHOOD VALUES. ANALYSIS NOT POSSIBLE!!! Dropping file")
+    out$dat <- NULL
+    return(out)
+  }
+  
+  
+  #Calculate distance to center for each point
+  dist_center <- NULL
+  for(j in pupil_points){
+    dist_center <- rbind(dist_center,distance_xy(data,j,point,coord,center_point))
+  }
+  #Take mean of distance for each point to determine final radius
+  dist_center <- apply(dist_center,2,FUN = mean)
+  out$dat <- data.frame(Time = data[,1],Diameter = dist_center)
+  out$Report <- append(out$Report,"Radius calculation OK!")
+  return(out)
+}
+
+distance_xy <- function(x,p,point,coord,center_point){
+  sqrt((x[,point == p & coord == "x"] - x[,point == center_point & coord == "x"])^2 + (x[,point == p & coord == "y"] - x[,point == center_point & coord == "y"])^2)
+}
