@@ -1,7 +1,7 @@
 Package: pupillometry
 Type: Package
 Title: Shiny interface for analyzing pupillometry data
-Version: 0.1
+Version: 0.2
 Authors@R: as.person(c(
     "Pierre-Luc Germain <pierre-luc.germain@hest.ethz.ch> [aut, cre]", 
     "Lukas von Ziegler <lukas.ziegler@hest.ethz.ch> [aut]"
