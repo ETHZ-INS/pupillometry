@@ -8,7 +8,7 @@
 testResponse <- function(response_data, testVar="Response", forms=list(), drift = "no", blnorm = F, animal = "None", cleaned = F){
   library(lme4)
   library(lmerTest)
-  library(lsmeans)
+  library(emmeans)
   
   if(drift != "no"){
     cat("WARNING!!!: data is normalized with a linear diameter drift model. This can introduce artefacts and reduce statistical power. Use of non-normalized data for statistics is recommended \n\n")
@@ -75,6 +75,6 @@ testResponse <- function(response_data, testVar="Response", forms=list(), drift 
     cat("\n =============== STATISTICAL RESULTS: =============== \n\n")
     print(summary(model))
     cat("\n =============== PAIRWISE POST-HOC COMPARISONS: =============== \n\n")
-    print(lsmeans(model, as.formula(paste0("pairwise~",paste(tTerms,collapse="+"))), adjust="tukey"))
-  })
+    print(emmeans(model, as.formula(paste0("pairwise~",paste(tTerms,collapse="+"))), adjust="tukey"))
+  }, type="output")
 }

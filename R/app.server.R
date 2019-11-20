@@ -43,6 +43,25 @@ app.server <- function(){
         }
       }, error=function(e){ stop(safeError(e)) })
     )
+    
+    observeEvent( input$sampleDLCInput,
+                  tryCatch({
+                    Report <- NULL
+                    for(i in 1:length(input$sampleDLCInput$name)){
+                      if(grepl("\\.csv$",input$sampleDLCInput$name[[i]])){
+                        header <- as.data.frame(fread(input$sampleDLCInput$datapath[[i]],nrows = 2))
+                        data <- as.data.frame(fread(input$sampleDLCInput$datapath[[i]],skip = 2))
+                        Transformed <- TransformDLC(data,header,input$DLC_likelihoodcutoff, input$DLC_completenesscutoff, input$DLC_center_point, input$DLC_pupil_points)
+                        dat$diameters[[basename(input$sampleDLCInput$name[[i]])]] <- Transformed$dat
+                        Report <- append(Report,input$sampleDLCInput$name[[i]])
+                        Report <- append(Report,Transformed$Report)
+                        updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+                        updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
+                      }
+                    }
+                    output$DLCReport <- renderPrint(cat(Report,sep = "\n"))
+                  }, error=function(e){ stop(safeError(e)) })
+    )
 
     #remove all loaded samples
     observeEvent(input$removesamples, {
@@ -511,6 +530,15 @@ app.server <- function(){
 	}else{
 	        write.csv(datasetExport(), file, row.names = FALSE)
 	}
+      }
+    )
+    
+    output$downloadmetadatascaffold <- downloadHandler(
+      filename = function() {
+        "metadata.csv"
+      },
+      content = function(file){
+        write.table(data.frame(filename = names(dat$diameters),Animal = names(dat$diameters)),file, sep = ";",row.names = F)
       }
     )
 
