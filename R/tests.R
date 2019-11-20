@@ -69,12 +69,12 @@ testResponse <- function(response_data, testVar="Response", forms=list(), drift 
   }
   
   capture.output({
-  cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
-  cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
-  print(anova(model.null,model))
-  cat("\n =============== STATISTICAL RESULTS: =============== \n\n")
-  print(summary(model))
-  cat("\n =============== PAIRWISE POST-HOC COMPARISONS: =============== \n\n")
-  print(emmeans(model, as.formula(paste0("pairwise~",paste(tTerms,collapse="+"))), adjust="tukey"))
+    cat("\n =============== VALIDITY OF THE MODEL, COMPARING TO NULL MODEL: =============== \n\n")
+    cat(paste0("Testing model `",form,"` against `",form0,"`\n\n"))
+    print(anova(model.null,model))
+    cat("\n =============== STATISTICAL RESULTS: =============== \n\n")
+    print(summary(model))
+    cat("\n =============== PAIRWISE POST-HOC COMPARISONS: =============== \n\n")
+    print(emmeans(model, as.formula(paste0("pairwise~",paste(tTerms,collapse="+"))), adjust="tukey"))
   }, type="output")
 }
