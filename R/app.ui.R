@@ -25,7 +25,7 @@ app.ui <- function(){
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
         menuItem("Export", tabName="export"),
-        menuItem("About", tabName="about")
+        menuItem("User Manual", tabName="usermanual")
       )
     ),
     dashboardBody(
@@ -34,6 +34,17 @@ app.ui <- function(){
           box(width=12, title = "Upload files",
               fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
               tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns."),actionButton("removesamples", "remove all"),actionButton("testsamples", "load example")
+          ),
+          box(width=12, title = "Upload and transform DLC files ", collapsible=T, collapsed=T,
+              column(6,textAreaInput("DLC_center_point", label="center point name in DLC", value = "center")),
+              column(6,textAreaInput("DLC_pupil_points", label="pupil points name in DLC (separated by ',')", value = "top,bottom,left,right,tr,br,bl,tl")),
+              column(6,numericInput("DLC_likelihoodcutoff", "likelihood cutoff", min=0, max=1, value=0.95)),
+              column(6,numericInput("DLC_completenesscutoff", "completeness cutoff", min=0, max=1, value=0.9)),
+              fileInput("sampleDLCInput",label="Select one or more samples to upload", multiple=T),
+              tags$p(style="font-weight:8;", "First ensure that the correct point names and cutoffs are set, then upload the files obtained by DLC (.csv exports). Press download button to get a metadata template .csv file. Fill in variables and re-upload the metadata file. See report for transform quality"),
+              box(width = 8, title = "Report", collapsible = T, collapsed = T,
+                  tags$div(style="margin: 10px;", fluidRow( verbatimTextOutput("DLCReport")))),
+              downloadButton("downloadmetadatascaffold", "Download metadata template")
           ),
           box(width=4, title = "Samples",
               DT::dataTableOutput('samples_info'),
@@ -79,7 +90,7 @@ app.ui <- function(){
         ),
         tabItem("settings",
             box(title="Plot",width =6,
-               numericInput("interval", label="Interval size (in seconds)", min=0, max=10, step=0.2, value=0.2),
+               numericInput("interval", label="Interval size (in seconds)", min=0, max=10, step=0.1, value=0.5),
                tags$p("customize the interval at which data-points should be plotted"),
                checkboxInput("showPoints", label="Plot points", value=T),
                selectInput("plot_groupBy","Group by",choices=c(),selectize=T,multiple=T),
@@ -133,14 +144,17 @@ app.ui <- function(){
             )
           ),
           tags$div(style="margin: 10px;", fluidRow( verbatimTextOutput("test_results") ))
+               
         ),
         tabItem("export",
-                selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results")),
+                selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results","Test Results")),
                 downloadButton("downloadData", "Download"),
+		tags$h3("Preview:"),
                 tableOutput("exporttable")
         ),
-        tabItem("about",
-                box(width=12, "some text saying stuff about...")
+        tabItem("usermanual",
+                box(width=12, "Click download to access the pupillometry app user manual as pdf",
+                    downloadButton("downloadmanual", "Download Manual"))
         )
       )
     )
