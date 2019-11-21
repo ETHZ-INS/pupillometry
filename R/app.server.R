@@ -43,25 +43,6 @@ app.server <- function(){
         }
       }, error=function(e){ stop(safeError(e)) })
     )
-    
-    observeEvent( input$sampleDLCInput,
-                  tryCatch({
-                    Report <- NULL
-                    for(i in 1:length(input$sampleDLCInput$name)){
-                      if(grepl("\\.csv$",input$sampleDLCInput$name[[i]])){
-                        header <- as.data.frame(fread(input$sampleDLCInput$datapath[[i]],nrows = 2))
-                        data <- as.data.frame(fread(input$sampleDLCInput$datapath[[i]],skip = 2))
-                        Transformed <- TransformDLC(data,header,input$DLC_likelihoodcutoff, input$DLC_completenesscutoff, input$DLC_center_point, input$DLC_pupil_points)
-                        dat$diameters[[basename(input$sampleDLCInput$name[[i]])]] <- Transformed$dat
-                        Report <- append(Report,input$sampleDLCInput$name[[i]])
-                        Report <- append(Report,Transformed$Report)
-                        updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
-                        updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
-                      }
-                    }
-                    output$DLCReport <- renderPrint(cat(Report,sep = "\n"))
-                  }, error=function(e){ stop(safeError(e)) })
-    )
 
     #remove all loaded samples
     observeEvent(input$removesamples, {
@@ -322,11 +303,11 @@ app.server <- function(){
       if(is.null(bins()$baseline) || is.null(bins()$response)) return(NULL)
       normDiameters(norm$diameters, bins(), tf=normfactor(), normalizeToBaseline=input$cb_normalize, normDrift=input$normDrift, input$cleanWidth/(2*normfactor()), input$cleanStrength, input$cleanUp)
     })
-      
-    test_results <- reactive({
+
+    output$test_results <- renderPrint({
       d <- normDat()
       if(is.null(d)) return(NULL)
-      if(is.null(dat$meta)) return("No metadata given.")
+      if(is.null(dat$meta)) stop("No metadata given.")
       meta <- dat$meta[names(d),]
       nbl <- nrow(bins()$baseline)
       nrb <- nrow(bins()$response)
@@ -335,8 +316,6 @@ app.server <- function(){
       d <- cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
       testResponse(d,input$test_var, forms=list(full=input$test_formula, reduced=input$test_formula0), input$normDrift,input$cb_normalize,input$animal_var, input$cleanUp)
     })
-
-    output$test_results <- renderPrint(cat(test_results(), sep="\n"))
 
     # END Stats
     #################
@@ -508,8 +487,7 @@ app.server <- function(){
                allbins <- rbind( cbind(bins()$baseline, Time=1:nbl, Response=rep(0,nbl)),
                                  cbind(bins()$response, Time=1:nrb, Response=rep(1,nrb)) )
                cbind(do.call(rbind, .getBinData(d, allbins)), meta[rep(names(d),each = (nbl + nrb)),])
-             },
-             "Test Results" = test_results())
+             })
       
     })
     PlotExport <- reactiveValues(
@@ -522,26 +500,13 @@ app.server <- function(){
     
     output$downloadData <- downloadHandler(
       filename = function() {
-        paste(input$dataset,ifelse(input$dataset=="Test Results",".txt",".csv"), sep = "")
+        paste(input$dataset,".csv", sep = "")
       },
       content = function(file){
-	if(input$dataset=="Test Results"){
-		cat(datasetExport(), file=file, sep="\n")
-	}else{
-	        write.csv(datasetExport(), file, row.names = FALSE)
-	}
+        write.csv(datasetExport(), file, row.names = FALSE)
       }
     )
     
-    output$downloadmetadatascaffold <- downloadHandler(
-      filename = function() {
-        "metadata.csv"
-      },
-      content = function(file){
-        write.table(data.frame(filename = names(dat$diameters),Animal = names(dat$diameters)),file, sep = ";",row.names = F)
-      }
-    )
-
     output$downloadPlot <- downloadHandler(
       filename = function() {
         "ExportedPlot.pdf"
