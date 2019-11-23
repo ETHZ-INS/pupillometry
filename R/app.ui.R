@@ -25,7 +25,7 @@ app.ui <- function(){
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
         menuItem("Export", tabName="export"),
-        menuItem("About", tabName="about")
+        menuItem("User Manual", tabName="usermanual")
       )
     ),
     dashboardBody(
@@ -152,8 +152,9 @@ app.ui <- function(){
 		tags$h3("Preview:"),
                 tableOutput("exporttable")
         ),
-        tabItem("about",
-                box(width=12, "some text saying stuff about...")
+        tabItem("usermanual",
+                box(width=12, "Click download to access the pupillometry app user manual as pdf",
+                    downloadButton("downloadmanual", "Download Manual"))
         )
       )
     )

@@ -443,10 +443,9 @@ app.server <- function(){
       }
 
       # ensure colors are assigned to correct sample/groups
-      
       cols <- as.data.frame(cols)
       cols <- cols[match(substring(rownames(cols),8),levels(as.factor(PlotData$PlotBy))),1]
-      
+
       #x and y axis descriptions
       if(input$plotXax != ""){
         p <- p + xlab(input$plotXax)
@@ -553,5 +552,15 @@ app.server <- function(){
       }
     )
     
+    output$downloadmanual <- downloadHandler(
+      filename <- function() {
+        "PupillometryApp_UserManual.pdf"
+      },
+      
+      content <- function(file) {
+        file.copy("data/PupillometryApp_UserManual.pdf", file)
+      },
+      contentType = "application/pdf"
+    )
   }
 }
