@@ -4,7 +4,7 @@
 #'
 #' @return A function.
 #' @export
-app.server <- function(){
+app.server <- function(fromPackage=TRUE){
   library(data.table)
 
   function(input, output, session){
@@ -76,7 +76,7 @@ app.server <- function(){
     
     #load examplary samples
     observeEvent(input$testsamples, {
-      if("pupillometry" %in% rownames(installed.packages())){
+      if(fromPackage && "pupillometry" %in% rownames(installed.packages())){
         data("example", package = "pupillometry")
       }else{
         # assume we're on shinyapps.io
@@ -562,13 +562,13 @@ app.server <- function(){
         "PupillometryApp_UserManual.pdf"
       },
       content <- function(file) {
-        if("pupillometry" %in% rownames(installed.packages())){
+        if(fromPackage && "pupillometry" %in% rownames(installed.packages())){
           fp <- system.file("docs/PupillometryApp_UserManual.pdf",package="pupillometry")
         }else{
           # assume we're on shinyapps.io
           fp <- "PupillometryApp_UserManual.pdf"
         }
-        file.copy(pf, file)
+        file.copy(fp, file)
       },
       contentType = "application/pdf"
     )

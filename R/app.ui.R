@@ -25,11 +25,26 @@ app.ui <- function(){
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
         menuItem("Export", tabName="export"),
-        menuItem("User Manual", tabName="usermanual")
+        menuItem("User Manual", tabName="usermanual"),
+        tags$div(id="lablink", tags$a(href="https://bohaceklab.ethz.ch/", "bohaceklab.ethz.ch"))
       )
     ),
     dashboardBody(
-      tabItems(
+      tags$head(tags$style(HTML('
+#lablink {
+  position: absolute;
+  bottom:2px;
+  left:8px;
+  font-size: 110%;
+  font-weight: bold;
+  text-decoration: none;
+}
+#lablink a:hover {
+  text-decoration: underline;
+}
+    '))),
+
+            tabItems(
         tabItem("samples", height="1500px",
           box(width=12, title = "Upload files",
               fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
