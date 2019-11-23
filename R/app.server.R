@@ -76,7 +76,12 @@ app.server <- function(){
     
     #load examplary samples
     observeEvent(input$testsamples, {
-      data("example", package = "pupillometry")
+      if("pupillometry" %in% rownames(installed.packages())){
+        data("example", package = "pupillometry")
+      }else{
+        # assume we're on shinyapps.io
+        load("example.RData")
+      }
       dat$meta <- example$meta
       dat$diameters <- example$diameters
       updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
@@ -556,9 +561,14 @@ app.server <- function(){
       filename <- function() {
         "PupillometryApp_UserManual.pdf"
       },
-      
       content <- function(file) {
-        file.copy("data/PupillometryApp_UserManual.pdf", file)
+        if("pupillometry" %in% rownames(installed.packages())){
+          fp <- system.file("docs/PupillometryApp_UserManual.pdf",package="pupillometry")
+        }else{
+          # assume we're on shinyapps.io
+          fp <- "PupillometryApp_UserManual.pdf"
+        }
+        file.copy(pf, file)
       },
       contentType = "application/pdf"
     )
