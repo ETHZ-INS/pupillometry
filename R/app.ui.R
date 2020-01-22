@@ -25,15 +25,35 @@ app.ui <- function(){
         menuItem("Plot", tabName="plot"),
         menuItem("Statistical tests", tabName="tests"),
         menuItem("Export", tabName="export"),
-        menuItem("User Manual", tabName="usermanual")
+        menuItem("User Manual", tabName="usermanual"),
+        tags$div(id="lablink", tags$a(href="https://bohaceklab.ethz.ch/", "bohaceklab.ethz.ch"))
       )
     ),
     dashboardBody(
-      tabItems(
+      tags$head(tags$style(HTML('
+#lablink {
+  position: absolute;
+  bottom:2px;
+  left:8px;
+  font-size: 110%;
+  font-weight: bold;
+  text-decoration: none;
+}
+#lablink a:hover {
+  text-decoration: underline;
+}
+    '))),
+
+            tabItems(
         tabItem("samples", height="1500px",
           box(width=12, title = "Upload files",
               fileInput("sampleFileInput",label="Select one or more samples to upload", multiple=T),
-              tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns."),actionButton("removesamples", "remove all"),actionButton("testsamples", "load example")
+              tags$p(style="font-weight:8;", "Data files should be of matlab matrices format. The metadata file should be a csv with the data filenames as first column, and further variables as additional columns."),
+              actionButton("removesamples", "remove all"),
+              actionButton("testsamples", "load example"),
+              actionButton("loadfig2", "load Figure 2 data"),
+              actionButton("loadfig3", "load Figure 3 data"),
+              actionButton("loadfig4", "load Figure 4 data")
           ),
           box(width=12, title = "Upload and transform DLC files ", collapsible=T, collapsed=T,
               column(6,textAreaInput("DLC_center_point", label="center point name in DLC", value = "center")),
