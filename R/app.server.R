@@ -15,9 +15,9 @@ app.server <- function(fromPackage=TRUE){
     # File upload handler
     observeEvent( input$sampleFileInput,
       tryCatch({
-        library(R.matlab)
         for(i in 1:length(input$sampleFileInput$name)){
           if(grepl("\\.mat$",input$sampleFileInput$name[[i]])){
+            library(R.matlab)
             import <- as.data.frame(readMat(input$sampleFileInput$datapath[[i]])$R)
             names(import) <- c("Time","Diameter")
             dat$diameters[[basename(input$sampleFileInput$name[[i]])]] <- import
@@ -332,6 +332,7 @@ app.server <- function(fromPackage=TRUE){
       d <- normDat()
       if(is.null(d)) return(NULL)
       if(is.null(dat$meta)) return("No metadata given.")
+      if(!binsOk()) return("Bins are not appropriately defined.")
       meta <- dat$meta[names(d),]
       nbl <- nrow(bins()$baseline)
       nrb <- nrow(bins()$response)
