@@ -93,13 +93,70 @@ app.server <- function(fromPackage=TRUE){
       updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
     })
     
+    #load examplary samples
+    observeEvent(input$loadfig2, {
+      if(fromPackage && "pupillometry" %in% rownames(installed.packages())){
+        data("fig2", package = "pupillometry")
+      }else{
+        # assume we're on shinyapps.io
+        load("fig2.RData")
+      }
+      dat$meta <- fig2$meta
+      dat$diameters <- fig2$diameters
+      updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
+      updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+      updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
+      selTestVar <- input$test_var
+      selAnimVar <- input$animal_var
+      updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
+      updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
+    })
+    
+    #load examplary samples
+    observeEvent(input$loadfig3, {
+      if(fromPackage && "pupillometry" %in% rownames(installed.packages())){
+        data("fig3", package = "pupillometry")
+      }else{
+        # assume we're on shinyapps.io
+        load("fig3.RData")
+      }
+      dat$meta <- fig3$meta
+      dat$diameters <- fig3$diameters
+      updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
+      updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+      updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
+      selTestVar <- input$test_var
+      selAnimVar <- input$animal_var
+      updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
+      updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
+    })
+    
+    #load examplary samples
+    observeEvent(input$loadfig4, {
+      if(fromPackage && "pupillometry" %in% rownames(installed.packages())){
+        data("fig4", package = "pupillometry")
+      }else{
+        # assume we're on shinyapps.io
+        load("fig4.RData")
+      }
+      dat$meta <- fig4$meta
+      dat$diameters <- fig4$diameters
+      updateSelectInput(session, "plot_groupBy", choices=colnames(dat$meta))
+      updateSelectInput(session, "preview_sample", choices=names(dat$diameters))
+      updateSelectInput(session, "preview_sample_cleaning", choices=names(dat$diameters))
+      selTestVar <- input$test_var
+      selAnimVar <- input$animal_var
+      updateSelectInput(session, "test_var", choices=c("Response",colnames(dat$meta)), selected=selTestVar)
+      updateSelectInput(session, "animal_var", choices=c(colnames(dat$meta)), selected=selAnimVar)
+    })
+    
     # raw data and metadata will be stored in the `dat` reactive object
     dat <- reactiveValues(
       meta=NULL,
       diameters=list()
     )
     
-    #alligns data of all files to be in the same range
+    #aligns data of all files to be in the same range
     observeEvent(input$CorrectRange, {
       mins <- NULL
       aligned <- dat$diameters
@@ -201,7 +258,8 @@ app.server <- function(fromPackage=TRUE){
     #sample colors
     sColors <- reactive({
       iN <- names(input)
-      w <- grep("^colorI",iN)
+      samples <- paste("colorI",names(dat$diameters),sep="_")
+      w <- match(samples,iN)
       if(length(w)==0) return(c())
       sapply(iN[w],FUN=function(x) input[[x]] )
     })
@@ -449,8 +507,9 @@ app.server <- function(fromPackage=TRUE){
       }
 
       # ensure colors are assigned to correct sample/groups
-      cols <- as.data.frame(cols)
-      cols <- cols[match(substring(rownames(cols),8),levels(as.factor(PlotData$PlotBy))),1]
+      cols <- data.frame(color = cols)
+      cols$file <- substring(rownames(cols),8)
+      cols <- cols[match(levels(as.factor(PlotData$PlotBy)),cols$file),"color"]
 
       #x and y axis descriptions
       if(input$plotXax != ""){
