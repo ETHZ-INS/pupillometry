@@ -160,11 +160,9 @@ app.ui <- function(){
             column(6, selectInput("animal_var","Animal variable", choices=c(), selectize=F)),
             column(12, tags$div(style="padding-top: 20px; text-align:center;", tags$h4("OR"))),
             column(6, textInput("test_formula", "Enter full formula")),
-            column(6, textInput("test_formula0", "Enter reduced formula")
-            )
+            column(6, textInput("test_formula0", "Enter reduced formula"))
           ),
-          tags$div(style="margin: 10px;", fluidRow( withSpinner(verbatimTextOutput("test_results")) ))
-               
+          tags$div(style="margin: 10px;", fluidRow( (verbatimTextOutput("test_results")) ))
         ),
         tabItem("export",
                 selectInput("dataset", "Choose a dataset", choices = c("Raw Data", "Normalized Data","Bin Results","Test Results")),
