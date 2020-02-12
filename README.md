@@ -14,12 +14,15 @@ Then run the app with:
 library(pupillometry)
 pupillometry.app()
 ```
+This app has ben tested and is compatible with R version 3.6.1
 
-This app is has been tested and is compatible with following operating systems:
+
+This app has been tested and is compatible with following operating systems:
 
 windows 10
 
 linux ???
+
 
 Following package versions have been tested and are compatible with this app
 
@@ -29,7 +32,7 @@ R.matlab v. 3.6.2
 
 shiny v. 1.4.0
 
-plotly v.4.9.0 
+plotly v. 4.9.0 
 
 shinydashboard v. 0.7.1
 
@@ -39,7 +42,7 @@ colourpicker v. 1.0
 
 MASS v. 7.3-51.4
 
-lme4 v.1.1-21
+lme4 v. 1.1-21
 
 lmerTest v.3.1-0
 
