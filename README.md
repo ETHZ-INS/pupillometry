@@ -21,7 +21,7 @@ This app has been tested and is compatible with following operating systems:
 
 windows 10
 
-linux ???
+ubuntu 18.04
 
 
 Following package versions have been tested and are compatible with this app
