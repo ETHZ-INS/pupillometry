@@ -235,7 +235,6 @@ getQualitativePalette <- function(nbcolors){
 }
 
 TransformDLC <- function(data,header,likelihood_cutoff, completeness_cutoff, center_point,input_points){
-  library(imputeTS)
   out <- list()
   pupil_points <- str_split(input_points,pattern = ",")[[1]]
   point <- t(data.frame(sapply(header[1,], as.character), stringsAsFactors=FALSE))
@@ -250,8 +249,8 @@ TransformDLC <- function(data,header,likelihood_cutoff, completeness_cutoff, cen
       to_adjust <- data[,point == j & coord =="likelihood"] <= likelihood_cutoff
       data[to_adjust, point == j & coord == "x"] <- NA
       data[to_adjust, point == j & coord == "y"] <- NA
-      data[,point == j & coord == "x"] <- na.interpolation(data[,point == j & coord == "x"])
-      data[,point == j & coord == "y"] <- na.interpolation(data[,point == j & coord == "y"])
+      data[,point == j & coord == "x"] <- InterpolateNA(data[,point == j & coord == "x"])
+      data[,point == j & coord == "y"] <- InterpolateNA(data[,point == j & coord == "y"])
     }
   }
   #interploate center point. If to many center points are missing return error message
@@ -263,8 +262,8 @@ TransformDLC <- function(data,header,likelihood_cutoff, completeness_cutoff, cen
   }
   data[to_adjust, point == center_point & coord == "x"] <- NA
   data[to_adjust, point == center_point & coord == "y"] <- NA
-  data[,point == center_point & coord == "x"] <- na.interpolation(data[,point == center_point & coord == "x"])
-  data[,point == center_point & coord == "y"] <- na.interpolation(data[,point == center_point & coord == "y"])
+  data[,point == center_point & coord == "x"] <- InterpolateNA(data[,point == center_point & coord == "x"])
+  data[,point == center_point & coord == "y"] <- InterpolateNA(data[,point == center_point & coord == "y"])
   
   if(length(pupil_points) < 1){
     out$Report <- append(out$Report,"WARNING: ALL PUPIL POINTS HAVE TO MANY LOW LIKELIHOOD VALUES. ANALYSIS NOT POSSIBLE!!! Dropping file")
@@ -287,4 +286,63 @@ TransformDLC <- function(data,header,likelihood_cutoff, completeness_cutoff, cen
 
 distance_xy <- function(x,p,point,coord,center_point){
   sqrt((x[,point == p & coord == "x"] - x[,point == center_point & coord == "x"])^2 + (x[,point == p & coord == "y"] - x[,point == center_point & coord == "y"])^2)
+}
+
+#This function is copied from the package imputeTS. due to update issues the dependency was dropped and the code copied here.
+InterpolateNA <- function(x)
+{
+  data <- x
+  if (!is.null(dim(data)[2]) && dim(data)[2] > 1) {
+    for (i in 1:dim(data)[2]) {
+      if (!anyNA(data[, i])) {
+        next
+      }
+      tryCatch(data[, i] <- InterpolateNA(data[, i], 
+                                             option, maxgap), error = function(cond) {
+                                               warning(paste("imputeTS: No imputation performed for column", 
+                                                             i, "because of this", cond), call. = FALSE)
+                                             })
+    }
+    return(data)
+  }
+  else {
+    missindx <- is.na(data)
+    if (!anyNA(data)) {
+      return(data)
+    }
+    if (any(class(data) == "tbl")) {
+      data <- as.vector(as.data.frame(data)[, 1])
+    }
+    if (sum(!missindx) < 2) {
+      stop("Input data needs at least 2 non-NA data point for applying na_interpolation")
+    }
+    if (!is.null(dim(data)[2]) && !dim(data)[2] == 1) {
+      stop("Wrong input type for parameter x")
+    }
+    if (!is.null(dim(data)[2])) {
+      data <- data[, 1]
+    }
+    if (!is.numeric(data)) {
+      stop("Input x is not numeric")
+    }
+    n <- length(data)
+    allindx <- 1:n
+    indx <- allindx[!missindx]
+    data_vec <- as.vector(data)
+    interp <- stats::approx(indx, data_vec[indx], 1:n, 
+                              rule = 2, ...)$y
+
+    data[missindx] <- interp[missindx]
+    if (is.finite(maxgap) && maxgap >= 0) {
+      rlencoding <- rle(is.na(x))
+      rlencoding$values[rlencoding$lengths <= maxgap] <- FALSE
+      en <- inverse.rle(rlencoding)
+      data[en == TRUE] <- NA
+    }
+    if (!is.null(dim(x)[2])) {
+      x[, 1] <- data
+      return(x)
+    }
+    return(data)
+  }
 }
