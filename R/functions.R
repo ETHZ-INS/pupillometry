@@ -289,7 +289,7 @@ distance_xy <- function(x,p,point,coord,center_point){
 }
 
 #This function is copied from the package imputeTS. due to update issues the dependency was dropped and the code copied here.
-InterpolateNA <- function(x)
+InterpolateNA <- function(x, option = "linear", maxgap = Inf, ...)
 {
   data <- x
   if (!is.null(dim(data)[2]) && dim(data)[2] > 1) {

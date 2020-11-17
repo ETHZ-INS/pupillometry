@@ -6,7 +6,7 @@
 #' @export
 app.server <- function(fromPackage=TRUE){
   library(data.table)
-
+  options(shiny.maxRequestSize=30*1024^2)
   function(input, output, session){
 
     #################
